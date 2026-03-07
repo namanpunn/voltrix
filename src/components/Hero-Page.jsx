@@ -6,7 +6,7 @@ import NavigationIcon from '@mui/icons-material/Navigation';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import RouteIcon from '@mui/icons-material/Route';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-
+import Link from 'next/link';
 // Enhanced Keyframe animations
 const fadeInUp = keyframes`
   from {
@@ -486,12 +486,16 @@ export default function ImprovedHeroPage() {
 
           {/* CTA Buttons */}
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mt: { xs: 3.5, md: 4, lg: 4.5 } }}>
-            <CTAButton variant="contained" size="large">
-              Start Your Journey
-            </CTAButton>
-            <SecondaryButton variant="outlined" size="large">
-              Explore Features
-            </SecondaryButton>
+            <Link href="/navigation">
+              <CTAButton variant="contained" size="large">
+                Start Your Journey
+              </CTAButton>
+            </Link>
+            <Link href="/features">
+              <SecondaryButton variant="outlined" size="large">
+                Explore Features
+              </SecondaryButton>
+            </Link>
           </Box>
 
           {/* Stats */}
