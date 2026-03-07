@@ -136,27 +136,39 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 
   return (
     <Box sx={{ flex: 1, position: "relative", overflow: "hidden", height: "100%" }}>
-      <div ref={divRef} style={{ width: "100%", height: "100%" }} />
+      <div ref={divRef} style={{ position: "absolute", inset: 0 }} />
 
       {!ready && (
         <Box sx={{
           position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          bgcolor: C.navy,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          gap: 1.5, bgcolor: C.navy,
         }}>
-          <CircularProgress size={24} sx={{ color: C.cyan }} />
+          <CircularProgress size={22} thickness={4} sx={{ color: C.cyan }} />
+          <Typography sx={{ fontSize: "0.68rem", color: C.textMuted, fontFamily: fonts.body }}>
+            Loading map…
+          </Typography>
         </Box>
       )}
 
       {label && ready && (
         <Box sx={{
-          position: "absolute", top: 12, left: 12, zIndex: 5,
-          bgcolor: "rgba(10,15,30,0.85)", backdropFilter: "blur(10px)",
-          border: `1px solid ${labelColor}40`, borderRadius: "9px",
-          px: 1.5, py: 0.7, display: "flex", alignItems: "center", gap: 0.8,
+          position: "absolute", top: 14, left: 14, zIndex: 5,
+          bgcolor: "rgba(10,15,30,0.88)", backdropFilter: "blur(12px)",
+          border: `1px solid ${labelColor}30`, borderRadius: "10px",
+          px: 1.5, py: 0.6, display: "flex", alignItems: "center", gap: 0.8,
+          boxShadow: `0 4px 20px rgba(0,0,0,0.3), 0 0 12px ${labelColor}15`,
         }}>
-          <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: labelColor, boxShadow: `0 0 6px ${labelColor}` }} />
-          <Typography sx={{ fontSize: "0.72rem", color: labelColor, fontWeight: 600, fontFamily: fonts.body }}>
+          <Box sx={{
+            width: 7, height: 7, borderRadius: "50%", bgcolor: labelColor,
+            boxShadow: `0 0 8px ${labelColor}`,
+            animation: "pulse 2s ease-in-out infinite",
+            "@keyframes pulse": {
+              "0%, 100%": { opacity: 1, transform: "scale(1)" },
+              "50%": { opacity: 0.6, transform: "scale(0.85)" },
+            },
+          }} />
+          <Typography sx={{ fontSize: "0.7rem", color: labelColor, fontWeight: 600, fontFamily: fonts.body, letterSpacing: "0.02em" }}>
             {label}
           </Typography>
         </Box>
@@ -164,12 +176,12 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 
       {badge && ready && (
         <Box sx={{
-          position: "absolute", top: 12, right: 12, zIndex: 5,
-          bgcolor: "rgba(10,15,30,0.75)", backdropFilter: "blur(8px)",
-          border: `1px solid ${C.navyBorder}`, borderRadius: "9px",
-          px: 1.2, py: 0.5,
+          position: "absolute", top: 14, right: 14, zIndex: 5,
+          bgcolor: "rgba(10,15,30,0.78)", backdropFilter: "blur(10px)",
+          border: `1px solid ${C.navyBorder}`, borderRadius: "8px",
+          px: 1.2, py: 0.4,
         }}>
-          <Typography sx={{ fontSize: "0.63rem", color: C.textMuted, fontFamily: fonts.body }}>
+          <Typography sx={{ fontSize: "0.6rem", color: C.textMuted, fontFamily: fonts.body, letterSpacing: "0.02em" }}>
             {badge}
           </Typography>
         </Box>
@@ -182,6 +194,19 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 const MapView = forwardRef(function MapView({ showSplit, loading }, ref) {
   const primaryRef   = useRef(null);
   const alternateRef = useRef(null);
+  const prevSplitRef = useRef(false);
+
+  // When split view toggles, invalidate both maps so Leaflet recalculates tile coverage
+  useEffect(() => {
+    const delays = [50, 250, 500];
+    delays.forEach(ms => {
+      setTimeout(() => {
+        primaryRef.current?.invalidate();
+        if (showSplit) alternateRef.current?.invalidate();
+      }, ms);
+    });
+    prevSplitRef.current = showSplit;
+  }, [showSplit]);
 
   useImperativeHandle(ref, () => ({
     drawPrimary(d)   { primaryRef.current?.draw({ ...d, color: C.cyan }); },
@@ -196,46 +221,66 @@ const MapView = forwardRef(function MapView({ showSplit, loading }, ref) {
 
       <SingleMap ref={primaryRef} label="Optimal Route" labelColor={C.cyan} badge="OpenStreetMap · OSRM" />
 
+      {/* VS divider — only visible in split mode */}
       {showSplit && (
         <Box sx={{
-          width: 4, flexShrink: 0, bgcolor: C.navyBorder,
+          width: 3, flexShrink: 0,
+          background: `linear-gradient(180deg, ${C.cyan}40, ${C.navyBorder}, #a78bfa40)`,
           position: "relative", zIndex: 5,
           "&::after": {
             content: '"VS"', position: "absolute",
             top: "50%", left: "50%", transform: "translate(-50%,-50%)",
             bgcolor: C.navyCard, border: `1px solid ${C.navyBorder}`,
-            color: C.textMuted, fontSize: "0.6rem", fontWeight: 700,
-            fontFamily: fonts.display, letterSpacing: "0.1em",
-            px: 0.8, py: 0.5, borderRadius: "6px", whiteSpace: "nowrap",
+            color: C.textMuted, fontSize: "0.58rem", fontWeight: 700,
+            fontFamily: fonts.display, letterSpacing: "0.12em",
+            px: 0.8, py: 0.4, borderRadius: "6px", whiteSpace: "nowrap",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
           },
         }} />
       )}
 
-      {showSplit && (
-        <SingleMap ref={alternateRef} label="Alternate Route" labelColor="#a78bfa" badge="via custom road" />
-      )}
+      {/* Alternate map — always mounted, hidden when not split */}
+      <Box sx={{
+        flex: showSplit ? 1 : 0,
+        minWidth: showSplit ? 0 : 0,
+        overflow: "hidden",
+        height: "100%",
+        position: "relative",
+        ...(!showSplit && { maxWidth: 0 }),
+      }}>
+        <Box sx={{ position: "absolute", inset: 0 }}>
+          <SingleMap ref={alternateRef} label="Alternate Route" labelColor="#a78bfa" badge="via custom road" />
+        </Box>
+      </Box>
 
       {loading && (
         <Box sx={{
           position: "absolute", inset: 0, zIndex: 20,
           display: "flex", alignItems: "center", justifyContent: "center",
-          bgcolor: "rgba(10,15,30,0.65)", backdropFilter: "blur(4px)",
+          bgcolor: "rgba(10,15,30,0.55)", backdropFilter: "blur(6px)",
         }}>
-          <Box sx={{ textAlign: "center" }}>
+          <Box sx={{
+            textAlign: "center",
+            bgcolor: "rgba(17,24,39,0.9)",
+            border: `1px solid ${C.navyBorder}`,
+            borderRadius: "16px",
+            px: 4, py: 3,
+            boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+          }}>
             <Box sx={{
-              width: 52, height: 52, borderRadius: "14px",
-              background: "linear-gradient(135deg,rgba(34,211,238,.1),rgba(59,130,246,.1))",
-              border: "1px solid rgba(34,211,238,.2)",
+              width: 48, height: 48, borderRadius: "14px",
+              background: `linear-gradient(135deg, ${C.cyan}18, ${C.navyBorder})`,
+              border: `1px solid ${C.cyan}25`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              mx: "auto", mb: 2,
+              mx: "auto", mb: 1.5,
             }}>
-              <CircularProgress size={22} sx={{ color: C.cyan }} />
+              <CircularProgress size={20} thickness={4} sx={{ color: C.cyan }} />
             </Box>
-            <Typography sx={{ color: C.textPrimary, fontWeight: 600, fontSize: "0.88rem", fontFamily: fonts.body }}>
+            <Typography sx={{ color: C.textPrimary, fontWeight: 600, fontSize: "0.85rem", fontFamily: fonts.body }}>
               Calculating Route
             </Typography>
-            <Typography sx={{ color: C.textMuted, fontSize: "0.72rem", fontFamily: fonts.body, mt: 0.3 }}>
-              Finding the optimal path...
+            <Typography sx={{ color: C.textMuted, fontSize: "0.7rem", fontFamily: fonts.body, mt: 0.4 }}>
+              Finding the optimal path…
             </Typography>
           </Box>
         </Box>

@@ -83,13 +83,12 @@ export default function NavigationPage() {
   const handleCompareAlternate = useCallback(async (viaText) => {
     const result = await calculateAlternate(viaText);
     if (!result || !primaryRoute) return;
-    setTimeout(() => {
-      mapRef.current?.drawAlternate({
-        coordinates: result.coordinates,
-        fromCoords: primaryRoute.fromCoords,
-        toCoords: primaryRoute.toCoords,
-      });
-    }, 200);
+    // drawAlternate buffers the draw if the alternate map hasn't mounted yet
+    mapRef.current?.drawAlternate({
+      coordinates: result.coordinates,
+      fromCoords: primaryRoute.fromCoords,
+      toCoords: primaryRoute.toCoords,
+    });
   }, [calculateAlternate, primaryRoute]);
 
   const handleClearAlternate = useCallback(() => {
