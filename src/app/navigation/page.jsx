@@ -119,8 +119,6 @@ export default function NavigationPage() {
       overflow: "hidden", bgcolor: "#0a0f1e",
       fontFamily: "'DM Sans', sans-serif",
     }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');`}</style>
-
       <Sidebar
         source={source}           setSource={setSource}
         destination={destination} setDestination={setDestination}
