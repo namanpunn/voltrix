@@ -7,7 +7,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Box, Typography, CircularProgress, Paper,
 } from "@mui/material";
-import { LocationOn, Search } from "@mui/icons-material";
+import { LocationOn, Search, History, CloseRounded } from "@mui/icons-material";
 import { C, darkInputSx, fonts } from "../app/utils/theme";
 import { fetchSuggestions } from "../app/hooks/useRoute";
 
@@ -30,16 +30,40 @@ function placeTypeLabel(type) {
   return map[type] || "Place";
 }
 
+// ── Recent searches helpers ───────────────────────────────────────────────────
+const RECENTS_KEY = "smartroute_recent_places";
+const MAX_RECENTS = 5;
+
+function getRecents() {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]");
+  } catch { return []; }
+}
+
+function saveRecent(place) {
+  const recents = getRecents().filter(r => r.shortName !== place.shortName);
+  recents.unshift(place);
+  localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS)));
+}
+
+function clearRecents() {
+  localStorage.removeItem(RECENTS_KEY);
+}
+
 export default function PlaceAutocomplete({
   label,
   value,
   onChange,          // (text) => void  — raw text change
   onSelect,          // (suggestion) => void — when user picks one
+  onEnterPress,      // () => void — when Enter pressed without dropdown selection
   dotColor = C.cyan,
   placeholder = "Search a place...",
   disabled = false,
 }) {
   const [suggestions,   setSuggestions]   = useState([]);
+  const [recents,        setRecents]       = useState([]);
+  const [showRecents,    setShowRecents]   = useState(false);
   const [open,          setOpen]          = useState(false);
   const [fetching,      setFetching]      = useState(false);
   const [activeIdx,     setActiveIdx]     = useState(-1);
@@ -68,11 +92,31 @@ export default function PlaceAutocomplete({
   const handleChange = (e) => {
     const v = e.target.value;
     onChange(v);
-    debouncedFetch(v);
+    if (v.trim().length < 3) {
+      setSuggestions([]);
+      // Show recents when text is short
+      const r = getRecents();
+      if (r.length > 0) { setRecents(r); setShowRecents(true); setOpen(true); }
+      else { setShowRecents(false); setOpen(false); }
+    } else {
+      setShowRecents(false);
+      debouncedFetch(v);
+    }
   };
 
   // ── Keyboard navigation ──────────────────────────────────────────────────
   const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      if (open && activeIdx >= 0) {
+        e.preventDefault();
+        handleSelect(suggestions[activeIdx]);
+      } else {
+        e.preventDefault();
+        setOpen(false);
+        onEnterPress?.();
+      }
+      return;
+    }
     if (!open) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -80,9 +124,6 @@ export default function PlaceAutocomplete({
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && activeIdx >= 0) {
-      e.preventDefault();
-      handleSelect(suggestions[activeIdx]);
     } else if (e.key === "Escape") {
       setOpen(false);
     }
@@ -92,9 +133,28 @@ export default function PlaceAutocomplete({
   const handleSelect = (s) => {
     onChange(s.shortName);
     onSelect?.(s);
+    saveRecent({ shortName: s.shortName, label: s.label || s.shortName, type: s.type || "place", placeId: s.placeId || Date.now() });
     setOpen(false);
+    setShowRecents(false);
     setSuggestions([]);
     setActiveIdx(-1);
+  };
+
+  // ── Select a recent ──────────────────────────────────────────────────────
+  const handleSelectRecent = (r) => {
+    onChange(r.shortName);
+    onSelect?.({ shortName: r.shortName, label: r.label });
+    setOpen(false);
+    setShowRecents(false);
+    setActiveIdx(-1);
+  };
+
+  const handleClearRecents = (e) => {
+    e.stopPropagation();
+    clearRecents();
+    setRecents([]);
+    setShowRecents(false);
+    setOpen(false);
   };
 
   // ── Close on outside click ───────────────────────────────────────────────
@@ -150,7 +210,14 @@ export default function PlaceAutocomplete({
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          onFocus={() => {
+            if (suggestions.length > 0) { setOpen(true); return; }
+            // Show recents on focus if input is empty/short
+            if (value.trim().length < 3) {
+              const r = getRecents();
+              if (r.length > 0) { setRecents(r); setShowRecents(true); setOpen(true); }
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled}
           style={{
@@ -171,8 +238,8 @@ export default function PlaceAutocomplete({
         }
       </Box>
 
-      {/* ── Dropdown ── */}
-      {open && suggestions.length > 0 && (
+      {/* ── Dropdown — API suggestions ── */}
+      {open && !showRecents && suggestions.length > 0 && (
         <Paper elevation={0} sx={{
           position: "absolute",
           top: "calc(100% + 6px)",
@@ -245,6 +312,74 @@ export default function PlaceAutocomplete({
                   px: 0.8, py: 0.3, borderRadius: "5px",
                 }}>
                   {placeTypeLabel(s.type)}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Paper>
+      )}
+
+      {/* ── Dropdown — Recent searches ── */}
+      {open && showRecents && recents.length > 0 && (
+        <Paper elevation={0} sx={{
+          position: "absolute",
+          top: "calc(100% + 6px)",
+          left: 0, right: 0,
+          zIndex: 1000,
+          bgcolor: C.navyCard,
+          border: `1px solid ${C.navyBorder}`,
+          borderRadius: "12px",
+          overflow: "hidden",
+          boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+        }}>
+          {/* Header */}
+          <Box sx={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            px: 1.5, py: 0.8,
+            borderBottom: `1px solid ${C.navyBorder}`,
+          }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
+              <History sx={{ fontSize: 12, color: C.textMuted }} />
+              <Typography sx={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.textMuted, fontFamily: fonts.body }}>
+                Recent Searches
+              </Typography>
+            </Box>
+            <Box
+              onMouseDown={handleClearRecents}
+              sx={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 0.3, "&:hover .clear-text": { color: C.rose } }}
+            >
+              <Typography className="clear-text" sx={{ fontSize: "0.6rem", color: C.textMuted, fontFamily: fonts.body, transition: "color 0.15s" }}>
+                Clear all
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Recent items */}
+          {recents.map((r, i) => (
+            <Box
+              key={r.shortName + i}
+              onMouseDown={() => handleSelectRecent(r)}
+              onMouseEnter={() => setActiveIdx(i)}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1.2,
+                px: 1.5, py: 1,
+                cursor: "pointer",
+                bgcolor: activeIdx === i ? C.navyCardHov : "transparent",
+                borderBottom: i < recents.length - 1 ? `1px solid ${C.navyBorder}` : "none",
+                transition: "background 0.12s",
+                "&:hover": { bgcolor: C.navyCardHov },
+              }}
+            >
+              <Box sx={{
+                width: 24, height: 24, borderRadius: "6px", flexShrink: 0,
+                bgcolor: "rgba(255,255,255,0.04)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <History sx={{ fontSize: 12, color: C.textMuted }} />
+              </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: C.textSub, fontFamily: fonts.body, lineHeight: 1.3 }}>
+                  {r.shortName}
                 </Typography>
               </Box>
             </Box>

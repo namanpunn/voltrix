@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
-import { Box, Typography, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress, IconButton, Tooltip, Button } from "@mui/material";
+import { CheckCircleOutlineRounded } from "@mui/icons-material";
 
 const C = {
   navy: "#0a0f1e", navyCard: "#111827", navyBorder: "#1e2d45",
@@ -34,17 +35,90 @@ function makePulseIcon(L, color) {
   });
 }
 
-function drawRoute(map, L, coordinates, fromCoords, toCoords, color, layersRef) {
+// ── Source icon — green pin ───────────────────────────────────────────────────
+function makeSourceIcon(L) {
+  return L.divIcon({
+    className: "",
+    iconAnchor: [14, 36],
+    html: `<div style="position:relative;width:28px;height:36px">
+      <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z" fill="#22c55e"/>
+        <circle cx="14" cy="14" r="6" fill="#fff" opacity="0.95"/>
+      </svg>
+      <div style="position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:#22c55e;opacity:0.2;animation:navPulse 2s ease-out infinite"></div>
+    </div>`,
+  });
+}
+
+// ── Destination icon — red pin ────────────────────────────────────────────────
+function makeDestIcon(L) {
+  return L.divIcon({
+    className: "",
+    iconAnchor: [14, 36],
+    html: `<div style="position:relative;width:28px;height:36px">
+      <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z" fill="#ef4444"/>
+        <circle cx="14" cy="14" r="6" fill="#fff" opacity="0.95"/>
+      </svg>
+      <div style="position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:#ef4444;opacity:0.2;animation:navPulse 2s ease-out infinite"></div>
+    </div>`,
+  });
+}
+
+// ── Source/Dest label tooltip ──────────────────────────────────────────────────
+function addLabelPopup(marker, text, type) {
+  const color = type === "source" ? "#22c55e" : "#ef4444";
+  const label = type === "source" ? "SOURCE" : "DESTINATION";
+  marker.bindTooltip(
+    `<div style="font-family:'DM Sans',sans-serif;font-size:11px;line-height:1.4;padding:2px 0">
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:${color};margin-bottom:2px">${label}</div>
+      <div style="font-weight:600;color:#f1f5f9">${text}</div>
+    </div>`,
+    {
+      permanent: false, direction: "top", offset: [0, -44],
+      className: "custom-tooltip",
+      opacity: 1,
+    }
+  );
+}
+
+// ── Tooltip CSS injection ─────────────────────────────────────────────────────
+function ensureTooltipCSS() {
+  if (typeof window === "undefined") return;
+  if (document.getElementById("custom-tooltip-css")) return;
+  const style = document.createElement("style");
+  style.id = "custom-tooltip-css";
+  style.textContent = `
+    .custom-tooltip {
+      background: rgba(10,15,30,0.95) !important;
+      border: 1px solid #1e2d45 !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+      padding: 6px 10px !important;
+      backdrop-filter: blur(12px);
+    }
+    .custom-tooltip::before { border-top-color: rgba(10,15,30,0.95) !important; }
+  `;
+  document.head.appendChild(style);
+}
+
+function drawRoute(map, L, coordinates, fromCoords, toCoords, color, layersRef, labels = {}) {
   // clear old layers
   layersRef.current.forEach(l => { try { map.removeLayer(l); } catch(_) {} });
   layersRef.current = [];
+  ensureTooltipCSS();
 
   const glow = L.polyline(coordinates, { color, weight: 14, opacity: 0.1, lineJoin: "round" }).addTo(map);
   const line = L.polyline(coordinates, { color, weight: 4,  opacity: 0.9, lineJoin: "round" }).addTo(map);
-  const mA   = L.marker(fromCoords, { icon: makePulseIcon(L, color) }).addTo(map);
-  const mB   = L.marker(toCoords,   { icon: makePulseIcon(L, C.rose) }).addTo(map);
 
-  layersRef.current = [glow, line, mA, mB];
+  // Source marker with label
+  const mA = L.marker(fromCoords, { icon: makeSourceIcon(L) }).addTo(map);
+  if (labels.from) addLabelPopup(mA, labels.from, "source");
+  // Destination marker with label
+  const mB = L.marker(toCoords, { icon: makeDestIcon(L) }).addTo(map);
+  if (labels.to) addLabelPopup(mB, labels.to, "destination");
+
+  layersRef.current.push(glow, line, mA, mB);
 
   // invalidateSize + fitBounds — crucial for maps in conditionally rendered containers
   setTimeout(() => {
@@ -53,14 +127,63 @@ function drawRoute(map, L, coordinates, fromCoords, toCoords, color, layersRef) 
   }, 100);
 }
 
+// ── Traffic color helpers ─────────────────────────────────────────────────────
+function getTrafficColor(speedKmh) {
+  if (speedKmh > 60) return "#22c55e"; // green  — free flow
+  if (speedKmh > 30) return "#f59e0b"; // amber  — moderate
+  if (speedKmh > 15) return "#f97316"; // orange — slow
+  return "#ef4444";                     // red    — congested
+}
+
+function drawTrafficRoute(map, L, trafficSegments, fromCoords, toCoords, layersRef, labels = {}) {
+  // clear old layers
+  layersRef.current.forEach(l => { try { map.removeLayer(l); } catch(_) {} });
+  layersRef.current = [];
+  ensureTooltipCSS();
+
+  const allCoords = [];
+  for (const seg of trafficSegments) {
+    const color = getTrafficColor(seg.speed);
+    const glow = L.polyline(seg.coordinates, { color, weight: 12, opacity: 0.12, lineJoin: "round", lineCap: "round" }).addTo(map);
+    const line = L.polyline(seg.coordinates, { color, weight: 5, opacity: 0.9, lineJoin: "round", lineCap: "round" }).addTo(map);
+    layersRef.current.push(glow, line);
+    allCoords.push(...seg.coordinates);
+  }
+
+  // Source marker
+  const mA = L.marker(fromCoords, { icon: makeSourceIcon(L) }).addTo(map);
+  if (labels.from) addLabelPopup(mA, labels.from, "source");
+  // Destination marker
+  const mB = L.marker(toCoords, { icon: makeDestIcon(L) }).addTo(map);
+  if (labels.to) addLabelPopup(mB, labels.to, "destination");
+  layersRef.current.push(mA, mB);
+
+  if (allCoords.length) {
+    setTimeout(() => {
+      map.invalidateSize({ animate: false });
+      map.fitBounds(L.latLngBounds(allCoords), { padding: [60, 60] });
+    }, 100);
+  }
+}
+
+// ── TomTom Traffic tile layer config ──────────────────────────────────────────
+// Free tier: 2,500 transactions/day — real-time traffic flow overlay
+// Set NEXT_PUBLIC_TOMTOM_API_KEY in .env.local
+function getTomTomTrafficUrl() {
+  const key = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TOMTOM_API_KEY : "";
+  if (!key || key === "YOUR_TOMTOM_API_KEY_HERE") return null;
+  return `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${key}&thickness=6&tileSize=256`;
+}
+
 // ── SingleMap ─────────────────────────────────────────────────────────────────
-const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, badge }, ref) {
-  const divRef      = useRef(null);
-  const mapRef      = useRef(null);   // L.Map instance
-  const LRef        = useRef(null);   // Leaflet lib
-  const layersRef   = useRef([]);
-  const pendingRef  = useRef(null);   // draw call that arrived before map ready
-  const initedRef   = useRef(false);  // guard against double-init (StrictMode)
+const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, badge, showTraffic = false }, ref) {
+  const divRef        = useRef(null);
+  const mapRef        = useRef(null);   // L.Map instance
+  const LRef          = useRef(null);   // Leaflet lib
+  const layersRef     = useRef([]);
+  const pendingRef    = useRef(null);   // draw call that arrived before map ready
+  const initedRef     = useRef(false);  // guard against double-init (StrictMode)
+  const trafficTileRef = useRef(null);  // TomTom traffic tile layer
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -104,7 +227,11 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
       if (pendingRef.current) {
         const p = pendingRef.current;
         pendingRef.current = null;
-        drawRoute(map, L, p.coordinates, p.fromCoords, p.toCoords, p.color, layersRef);
+        if (p.isTraffic) {
+          drawTrafficRoute(map, L, p.trafficSegments, p.fromCoords, p.toCoords, layersRef, p.labels || {});
+        } else {
+          drawRoute(map, L, p.coordinates, p.fromCoords, p.toCoords, p.color, layersRef, p.labels || {});
+        }
       }
     });
 
@@ -115,12 +242,43 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
     };
   }, []);
 
+  // ── Toggle TomTom real-time traffic tile layer ───────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !LRef.current) return;
+    const map = mapRef.current;
+    const L = LRef.current;
+
+    if (showTraffic) {
+      const url = getTomTomTrafficUrl();
+      if (url && !trafficTileRef.current) {
+        trafficTileRef.current = L.tileLayer(url, {
+          maxZoom: 19, opacity: 0.75, zIndex: 400,
+          attribution: "© TomTom Traffic",
+        });
+      }
+      if (trafficTileRef.current && !map.hasLayer(trafficTileRef.current)) {
+        trafficTileRef.current.addTo(map);
+      }
+    } else {
+      if (trafficTileRef.current && map.hasLayer(trafficTileRef.current)) {
+        map.removeLayer(trafficTileRef.current);
+      }
+    }
+  }, [showTraffic, ready]);
+
   useImperativeHandle(ref, () => ({
-    draw({ coordinates, fromCoords, toCoords, color = C.cyan }) {
+    draw({ coordinates, fromCoords, toCoords, color = C.cyan, labels = {} }) {
       if (mapRef.current && LRef.current) {
-        drawRoute(mapRef.current, LRef.current, coordinates, fromCoords, toCoords, color, layersRef);
+        drawRoute(mapRef.current, LRef.current, coordinates, fromCoords, toCoords, color, layersRef, labels);
       } else {
-        pendingRef.current = { coordinates, fromCoords, toCoords, color };
+        pendingRef.current = { coordinates, fromCoords, toCoords, color, labels };
+      }
+    },
+    drawTraffic({ trafficSegments, fromCoords, toCoords, labels = {} }) {
+      if (mapRef.current && LRef.current) {
+        drawTrafficRoute(mapRef.current, LRef.current, trafficSegments, fromCoords, toCoords, layersRef, labels);
+      } else {
+        pendingRef.current = { trafficSegments, fromCoords, toCoords, isTraffic: true, labels };
       }
     },
     clear() {
@@ -190,8 +348,37 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
   );
 });
 
+// ── Traffic Legend ─────────────────────────────────────────────────────────────
+function TrafficLegend() {
+  const items = [
+    { color: "#22c55e", label: "> 60 km/h" },
+    { color: "#f59e0b", label: "30–60 km/h" },
+    { color: "#f97316", label: "15–30 km/h" },
+    { color: "#ef4444", label: "< 15 km/h" },
+  ];
+  return (
+    <Box sx={{
+      position: "absolute", bottom: 24, left: 14, zIndex: 10,
+      bgcolor: "rgba(10,15,30,0.92)", backdropFilter: "blur(12px)",
+      border: `1px solid ${C.navyBorder}`, borderRadius: "10px",
+      px: 1.5, py: 1.2,
+      boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+    }}>
+      <Typography sx={{ fontSize: "0.6rem", color: C.textMuted, fontFamily: fonts.body, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", mb: 0.6 }}>
+        Traffic Speed
+      </Typography>
+      {items.map(({ color, label }) => (
+        <Box key={color} sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 0.3 }}>
+          <Box sx={{ width: 18, height: 4, borderRadius: 2, bgcolor: color }} />
+          <Typography sx={{ fontSize: "0.6rem", color: C.textPrimary, fontFamily: fonts.body }}>{label}</Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 // ── Main MapView ──────────────────────────────────────────────────────────────
-const MapView = forwardRef(function MapView({ showSplit, loading }, ref) {
+const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = false, onChoosePrimary, onChooseAlternate }, ref) {
   const primaryRef   = useRef(null);
   const alternateRef = useRef(null);
   const prevSplitRef = useRef(false);
@@ -209,17 +396,54 @@ const MapView = forwardRef(function MapView({ showSplit, loading }, ref) {
   }, [showSplit]);
 
   useImperativeHandle(ref, () => ({
-    drawPrimary(d)   { primaryRef.current?.draw({ ...d, color: C.cyan }); },
-    drawAlternate(d) { alternateRef.current?.draw({ ...d, color: "#a78bfa" }); },
-    clearPrimary()   { primaryRef.current?.clear(); },
-    clearAlternate() { alternateRef.current?.clear(); },
-    clearAll()       { primaryRef.current?.clear(); alternateRef.current?.clear(); },
+    drawPrimary(d)        { primaryRef.current?.draw({ ...d, color: C.cyan }); },
+    drawPrimaryTraffic(d) { primaryRef.current?.drawTraffic(d); },
+    drawAlternate(d)      { alternateRef.current?.draw({ ...d, color: "#a78bfa" }); },
+    clearPrimary()        { primaryRef.current?.clear(); },
+    clearAlternate()      { alternateRef.current?.clear(); },
+    clearAll()            { primaryRef.current?.clear(); alternateRef.current?.clear(); },
+    getMap()              { return primaryRef.current; },
   }));
 
   return (
     <Box sx={{ flex: 1, display: "flex", height: "100vh", overflow: "hidden", position: "relative" }}>
 
-      <SingleMap ref={primaryRef} label="Optimal Route" labelColor={C.cyan} badge="OpenStreetMap · OSRM" />
+      {/* Primary map panel */}
+      <Box sx={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ flex: 1, position: "relative" }}>
+          <SingleMap ref={primaryRef} label={showTraffic ? "Live Traffic" : "Optimal Route"} labelColor={showTraffic ? "#22c55e" : C.cyan} badge="OpenStreetMap · OSRM" showTraffic={showTraffic} />
+        </Box>
+
+        {/* Choose primary route button */}
+        {showSplit && onChoosePrimary && (
+          <Button
+            onClick={onChoosePrimary}
+            startIcon={<CheckCircleOutlineRounded sx={{ fontSize: 16 }} />}
+            sx={{
+              position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+              zIndex: 1000,
+              bgcolor: "rgba(10,15,30,0.92)", backdropFilter: "blur(12px)",
+              border: `1.5px solid ${C.cyan}50`,
+              color: C.cyan, fontFamily: fonts.body, fontWeight: 600,
+              fontSize: "0.72rem", textTransform: "none",
+              borderRadius: "10px", px: 2.5, py: 0.8,
+              boxShadow: `0 4px 20px rgba(0,0,0,0.4), 0 0 12px ${C.cyan}15`,
+              transition: "all 0.2s ease",
+              "&:hover": {
+                bgcolor: `${C.cyan}20`,
+                borderColor: C.cyan,
+                boxShadow: `0 0 20px ${C.cyan}30`,
+                transform: "translateX(-50%) scale(1.03)",
+              },
+            }}
+          >
+            Choose this route
+          </Button>
+        )}
+      </Box>
+
+      {/* Traffic legend — shown when traffic mode active */}
+      {showTraffic && <TrafficLegend />}
 
       {/* VS divider — only visible in split mode */}
       {showSplit && (
@@ -246,11 +470,41 @@ const MapView = forwardRef(function MapView({ showSplit, loading }, ref) {
         overflow: "hidden",
         height: "100%",
         position: "relative",
+        display: "flex", flexDirection: "column",
         ...(!showSplit && { maxWidth: 0 }),
       }}>
-        <Box sx={{ position: "absolute", inset: 0 }}>
-          <SingleMap ref={alternateRef} label="Alternate Route" labelColor="#a78bfa" badge="via custom road" />
+        <Box sx={{ flex: 1, position: "relative" }}>
+          <Box sx={{ position: "absolute", inset: 0 }}>
+            <SingleMap ref={alternateRef} label="Alternate Route" labelColor="#a78bfa" badge="via custom road" showTraffic={showTraffic} />
+          </Box>
         </Box>
+
+        {/* Choose alternate route button */}
+        {showSplit && onChooseAlternate && (
+          <Button
+            onClick={onChooseAlternate}
+            startIcon={<CheckCircleOutlineRounded sx={{ fontSize: 16 }} />}
+            sx={{
+              position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+              zIndex: 1000,
+              bgcolor: "rgba(10,15,30,0.92)", backdropFilter: "blur(12px)",
+              border: "1.5px solid rgba(167,139,250,0.35)",
+              color: "#a78bfa", fontFamily: fonts.body, fontWeight: 600,
+              fontSize: "0.72rem", textTransform: "none",
+              borderRadius: "10px", px: 2.5, py: 0.8,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.4), 0 0 12px rgba(167,139,250,0.15)",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                bgcolor: "rgba(167,139,250,0.15)",
+                borderColor: "#a78bfa",
+                boxShadow: "0 0 20px rgba(167,139,250,0.3)",
+                transform: "translateX(-50%) scale(1.03)",
+              },
+            }}
+          >
+            Choose this route
+          </Button>
+        )}
       </Box>
 
       {loading && (

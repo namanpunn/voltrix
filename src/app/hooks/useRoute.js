@@ -63,17 +63,33 @@ export async function fetchRoute(from, to, viaCoords = null) {
     ? `${from[1]},${from[0]};${viaCoords[1]},${viaCoords[0]};${to[1]},${to[0]}`
     : `${from[1]},${from[0]};${to[1]},${to[0]}`;
 
-  const res  = await fetch(`${OSRM}/${waypoints}?overview=full&geometries=geojson`);
+  const res  = await fetch(`${OSRM}/${waypoints}?overview=full&geometries=geojson&steps=true`);
   const data = await res.json();
   if (data.code !== "Ok") throw new Error("Route not found");
 
   const route = data.routes[0];
+
+  // Extract per-step traffic segments with speed data
+  const trafficSegments = [];
+  for (const leg of route.legs) {
+    for (const step of leg.steps) {
+      if (!step.geometry?.coordinates || step.geometry.coordinates.length < 2) continue;
+      const speedKmh = step.duration > 0 ? (step.distance / step.duration) * 3.6 : 0;
+      trafficSegments.push({
+        coordinates: step.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+        speed: Math.round(speedKmh),
+        name: step.name || "",
+      });
+    }
+  }
+
   return {
     coordinates: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
     distance:    (route.distance / 1000).toFixed(1),
     duration:    Math.round(route.duration / 60),
     rawDistance: route.distance,
     rawDuration: route.duration,
+    trafficSegments,
   };
 }
 

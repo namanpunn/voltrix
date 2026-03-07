@@ -38,8 +38,10 @@ function MetricTile({ icon, value, unit, label, color }) {
 
 // Comparison badge for split screen
 function DiffBadge({ primaryVal, altVal, lowerIsBetter = true }) {
-  const diff = parseFloat(altVal) - parseFloat(primaryVal);
-  const pct  = Math.abs((diff / parseFloat(primaryVal)) * 100).toFixed(0);
+  const pVal = parseFloat(primaryVal) || 0;
+  const aVal = parseFloat(altVal) || 0;
+  const diff = aVal - pVal;
+  const pct  = pVal !== 0 ? Math.abs((diff / pVal) * 100).toFixed(0) : "0";
   if (Math.abs(diff) < 0.01) return (
     <Chip icon={<TrendingFlat sx={{ fontSize: "12px !important" }} />}
       label="Same" size="small"

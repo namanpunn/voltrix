@@ -111,6 +111,7 @@ export default function Sidebar({
           value={source}
           onChange={(v) => { setSource(v); }}
           onSelect={(s) => setSource(s.shortName)}
+          onEnterPress={onGetRoute}
           dotColor={C.cyan}
           placeholder="e.g. Connaught Place, Delhi"
           disabled={loading}
@@ -144,6 +145,7 @@ export default function Sidebar({
           value={destination}
           onChange={(v) => { setDestination(v); }}
           onSelect={(s) => setDestination(s.shortName)}
+          onEnterPress={onGetRoute}
           dotColor={C.rose}
           placeholder="e.g. India Gate, Delhi"
           disabled={loading}

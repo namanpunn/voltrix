@@ -491,11 +491,6 @@ export default function ImprovedHeroPage() {
                 Start Your Journey
               </CTAButton>
             </Link>
-            <Link href="/features">
-              <SecondaryButton variant="outlined" size="large">
-                Explore Features
-              </SecondaryButton>
-            </Link>
           </Box>
 
           {/* Stats */}
