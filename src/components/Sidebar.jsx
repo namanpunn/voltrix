@@ -1,20 +1,17 @@
 // ─── Sidebar.jsx ─────────────────────────────────────────────────────────────
 "use client";
 
-import { Box, Typography, IconButton, Button, Chip, Fade, Divider } from "@mui/material";
+import { Box, Typography, IconButton, Button, Chip, Divider } from "@mui/material";
 import {
   Navigation, ArrowBack, SwapVert, Directions,
-  RouteOutlined, Videocam,
+  RouteOutlined,
 } from "@mui/icons-material";
-import {CircularProgress} from "@mui/material";
+import { CircularProgress } from "@mui/material";
 import Link from "next/link";
 import { C, fonts } from "../app/utils/theme";
 import PlaceAutocomplete from "./PlaceAutocomplete";
 import RouteInfoCard from "./RouteInfoCard";
 import AlternateRouteInput from "./AlternateRouteInput";
-// import RouteInfoCard from "./RouteInfoCard";
-import alternateRoute from "./AlternateRouteInput";
-import TrafficPanel from "./TrafficPanel";
 
 export default function Sidebar({
   source, setSource,
@@ -46,18 +43,15 @@ export default function Sidebar({
       bgcolor: C.navyLight,
       borderRight: `1px solid ${C.navyBorder}`,
       zIndex: 10,
-      overflowY: "auto", overflowX: "hidden",
-      "&::-webkit-scrollbar": { width: 4 },
-      "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
-      "&::-webkit-scrollbar-thumb": { bgcolor: C.navyBorder, borderRadius: 2 },
+      overflow: "hidden",
     }}>
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <Box sx={{
-        px: 3, py: 2.5,
+        px: 2.5, py: 2,
         borderBottom: `1px solid ${C.navyBorder}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "linear-gradient(180deg, rgba(34,211,238,0.05) 0%, transparent 100%)",
+        background: `linear-gradient(180deg, ${C.navyLight} 0%, ${C.navyLight} 100%)`,
         flexShrink: 0,
       }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -89,8 +83,17 @@ export default function Sidebar({
         </Link>
       </Box>
 
+      {/* ── Scrollable content area ─────────────────────────────────── */}
+      <Box sx={{
+        flex: 1, minHeight: 0,
+        overflowY: "auto", overflowX: "hidden",
+        "&::-webkit-scrollbar": { width: 4 },
+        "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+        "&::-webkit-scrollbar-thumb": { bgcolor: C.navyBorder, borderRadius: 2 },
+      }}>
+
       {/* ── Route Planner ───────────────────────────────────────────────── */}
-      <Box sx={{ px: 3, pt: 3, pb: 2, flexShrink: 0 }}>
+      <Box sx={{ px: 2.5, pt: 2.5, pb: 1.5 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
           <RouteOutlined sx={{ fontSize: 14, color: C.cyan }} />
           <Typography sx={{
@@ -208,11 +211,11 @@ export default function Sidebar({
       </Box>
 
       {/* Divider only when route exists */}
-      {primaryRoute && <Box sx={{ height: 1, bgcolor: C.navyBorder, mx: 3, flexShrink: 0 }} />}
+      {primaryRoute && <Divider sx={{ borderColor: C.navyBorder, mx: 2.5 }} />}
 
       {/* ── Results section — only rendered when route exists ─────────── */}
-      <Box sx={{ px: 3, pt: 2.5, pb: 2 }}>
-        {primaryRoute && (
+      {primaryRoute && (
+      <Box sx={{ px: 2.5, pt: 2, pb: 2 }}>
           <>
             {/* Primary route card */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
@@ -259,13 +262,13 @@ export default function Sidebar({
               hasAlternate={!!alternateRoute}
             />
           </>
-        )}
 
       </Box>
+      )}
 
-      {/* Empty state — outside results box so no padding leaks */}
+      {/* Empty state */}
       {!primaryRoute && !loading && (
-        <Box sx={{ px: 3, pt: 2 }}>
+        <Box sx={{ px: 2.5, pt: 2, pb: 2 }}>
           <Box sx={{
             border: `1px dashed ${C.navyBorder}`,
             borderRadius: "12px",
@@ -299,12 +302,15 @@ export default function Sidebar({
         </Box>
       )}
 
+      </Box>{/* end scrollable content */}
+
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <Box sx={{
-        px: 3, py: 1.8,
+        px: 2.5, py: 1.5,
         borderTop: `1px solid ${C.navyBorder}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexShrink: 0,
+        background: `linear-gradient(0deg, rgba(34,211,238,0.02) 0%, transparent 100%)`,
       }}>
         <Typography sx={{ fontSize: "0.62rem", color: C.textMuted }}>
           K.R. Mangalam University · Final Year Project
