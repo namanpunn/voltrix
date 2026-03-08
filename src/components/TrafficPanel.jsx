@@ -14,8 +14,9 @@ import {
   TrendingUpRounded, AddRoadRounded, ExpandMoreRounded,
   ExpandLessRounded, PlayArrowRounded,
 } from "@mui/icons-material";
-import { C, fonts } from "../app/utils/theme";
+import { C, getColors, fonts } from "../app/utils/theme";
 import PlaceAutocomplete from "./PlaceAutocomplete";
+import { useTheme } from "../app/context/ThemeContext";
 
 export default function TrafficPanel({
   roadblocks,
@@ -31,6 +32,8 @@ export default function TrafficPanel({
   const [reporting,       setReporting]       = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [panelExpanded,   setPanelExpanded]   = useState(true);
+  const { isDark } = useTheme();
+  const T = getColors(isDark);
 
   const handleReport = async () => {
     if (!blockInput.trim()) return;
@@ -50,7 +53,7 @@ export default function TrafficPanel({
         sx={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           cursor: "pointer", mb: panelExpanded ? 1.5 : 0,
-          "&:hover .label": { color: C.textSub },
+          "&:hover .label": { color: T.textSub },
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -58,8 +61,7 @@ export default function TrafficPanel({
           <Typography className="label" sx={{
             fontSize: "0.68rem", fontWeight: 600,
             letterSpacing: "0.12em", textTransform: "uppercase",
-            color: C.textMuted, fontFamily: fonts.body,
-            transition: "color 0.15s",
+            color: T.textMuted, fontFamily: fonts.body,
           }}>
             Traffic & Rerouting
           </Typography>
@@ -68,7 +70,7 @@ export default function TrafficPanel({
               label={roadblocks.length}
               size="small"
               sx={{
-                bgcolor: "rgba(244,63,94,0.12)", color: C.rose,
+                bgcolor: "rgba(244,63,94,0.12)", color: T.rose,
                 border: "1px solid rgba(244,63,94,0.2)",
                 fontSize: "0.6rem", height: 16, minWidth: 16,
                 fontFamily: fonts.body, fontWeight: 700,
@@ -77,8 +79,8 @@ export default function TrafficPanel({
           )}
         </Box>
         {panelExpanded
-          ? <ExpandLessRounded sx={{ fontSize: 16, color: C.textMuted }} />
-          : <ExpandMoreRounded  sx={{ fontSize: 16, color: C.textMuted }} />
+          ? <ExpandLessRounded sx={{ fontSize: 16, color: T.textMuted }} />
+          : <ExpandMoreRounded  sx={{ fontSize: 16, color: T.textMuted }} />
         }
       </Box>
 
@@ -86,25 +88,26 @@ export default function TrafficPanel({
         {/* ── Live status bar ── */}
         <Box sx={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          bgcolor: C.navyCard,
-          border: `1px solid ${C.navyBorder}`,
+          bgcolor: T.navyCard,
+          border: `1px solid ${T.navyBorder}`,
           borderRadius: "10px",
           px: 1.5, py: 1, mb: 1.5,
+          transition: "background-color 0.4s ease, border-color 0.4s ease",
         }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Box sx={{
               width: 7, height: 7, borderRadius: "50%",
               bgcolor: rerouteStatus === "off_route"    ? "#f59e0b"
-                     : rerouteStatus === "recalculating"? C.cyan
+                     : rerouteStatus === "recalculating"? T.cyan
                      : rerouteStatus === "rerouted"     ? "#22c55e"
-                     : rerouteStatus === "blocked"      ? C.rose
+                     : rerouteStatus === "blocked"      ? T.rose
                      : "#334155",
               boxShadow: rerouteStatus !== "idle"
-                ? `0 0 6px ${rerouteStatus === "off_route" ? "#f59e0b" : C.cyan}`
+                ? `0 0 6px ${rerouteStatus === "off_route" ? "#f59e0b" : T.cyan}`
                 : "none",
               transition: "all 0.3s",
             }} />
-            <Typography sx={{ fontSize: "0.73rem", fontWeight: 600, color: C.textSub, fontFamily: fonts.body }}>
+            <Typography sx={{ fontSize: "0.73rem", fontWeight: 600, color: T.textSub, fontFamily: fonts.body }}>
               {rerouteStatus === "idle"          ? "On Route"
                : rerouteStatus === "off_route"   ? "Off Route"
                : rerouteStatus === "recalculating"? "Recalculating..."
@@ -119,7 +122,7 @@ export default function TrafficPanel({
                 {distFromRoute}m off
               </Typography>
             )}
-            {isRecalculating && <CircularProgress size={12} sx={{ color: C.cyan }} />}
+            {isRecalculating && <CircularProgress size={12} sx={{ color: T.cyan }} />}
           </Box>
         </Box>
 
@@ -133,7 +136,7 @@ export default function TrafficPanel({
           <Typography sx={{
             fontSize: "0.62rem", fontWeight: 600,
             letterSpacing: "0.1em", textTransform: "uppercase",
-            color: C.textMuted, mb: 1, fontFamily: fonts.body,
+            color: T.textMuted, mb: 1, fontFamily: fonts.body,
           }}>
             Demo / Test
           </Typography>
@@ -170,7 +173,7 @@ export default function TrafficPanel({
                 textTransform: "none", fontFamily: fonts.body,
                 fontSize: "0.72rem", fontWeight: 600,
                 bgcolor: "rgba(59,130,246,0.1)",
-                color: C.blue,
+                color: T.blue,
                 border: `1px solid rgba(59,130,246,0.2)`,
                 "&:hover": { bgcolor: "rgba(59,130,246,0.18)" },
                 "&:disabled": { opacity: 0.4 },
@@ -183,16 +186,17 @@ export default function TrafficPanel({
 
         {/* ── Report Roadblock ── */}
         <Box sx={{
-          bgcolor: C.navyCard,
-          border: `1px solid ${C.navyBorder}`,
+          bgcolor: T.navyCard,
+          border: `1px solid ${T.navyBorder}`,
           borderRadius: "10px",
           p: 1.5, mb: 1.5,
+          transition: "background-color 0.4s ease, border-color 0.4s ease",
         }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.2 }}>
-            <BlockOutlined sx={{ fontSize: 13, color: C.rose }} />
+            <BlockOutlined sx={{ fontSize: 13, color: T.rose }} />
             <Typography sx={{
               fontSize: "0.68rem", fontWeight: 600,
-              color: C.textMuted, fontFamily: fonts.body,
+              color: T.textMuted, fontFamily: fonts.body,
               textTransform: "uppercase", letterSpacing: "0.08em",
             }}>
               Report Roadblock
@@ -204,7 +208,7 @@ export default function TrafficPanel({
             value={blockInput}
             onChange={setBlockInput}
             onSelect={(s) => setBlockInput(s.plainName || s.shortName)}
-            dotColor={C.rose}
+            dotColor={T.rose}
             placeholder="e.g. Ring Road, Delhi"
             disabled={reporting || isRecalculating}
           />
@@ -223,10 +227,10 @@ export default function TrafficPanel({
               fontWeight: 600, fontSize: "0.78rem",
               background: reporting ? "rgba(244,63,94,0.1)"
                 : `linear-gradient(135deg, rgba(244,63,94,0.15), rgba(244,63,94,0.08))`,
-              color: C.rose,
+              color: T.rose,
               border: `1px solid rgba(244,63,94,0.25)`,
               "&:hover": { bgcolor: "rgba(244,63,94,0.15)" },
-              "&:disabled": { opacity: 0.4, color: C.rose },
+              "&:disabled": { opacity: 0.4, color: T.rose },
             }}
           >
             {reporting ? "Reporting & Rerouting..." : "Report & Reroute"}
@@ -247,23 +251,23 @@ export default function TrafficPanel({
                   px: 1.2, py: 0.8, mb: 0.6,
                 }}
               >
-                <BlockOutlined sx={{ fontSize: 12, color: C.rose, flexShrink: 0 }} />
+                <BlockOutlined sx={{ fontSize: 12, color: T.rose, flexShrink: 0 }} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{
-                    fontSize: "0.75rem", color: C.textSub, fontWeight: 500,
+                    fontSize: "0.75rem", color: T.textSub, fontWeight: 500,
                     fontFamily: fonts.body,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
                     {block.location}
                   </Typography>
-                  <Typography sx={{ fontSize: "0.62rem", color: C.textMuted, fontFamily: fonts.body }}>
+                  <Typography sx={{ fontSize: "0.62rem", color: T.textMuted, fontFamily: fonts.body }}>
                     Reported at {block.timestamp}
                   </Typography>
                 </Box>
                 <IconButton
                   size="small"
                   onClick={() => onRemoveRoadblock(block.id)}
-                  sx={{ color: C.textMuted, width: 22, height: 22, "&:hover": { color: C.rose } }}
+                  sx={{ color: T.textMuted, width: 22, height: 22, "&:hover": { color: T.rose } }}
                 >
                   <DeleteOutlineRounded sx={{ fontSize: 13 }} />
                 </IconButton>
@@ -275,7 +279,7 @@ export default function TrafficPanel({
         {/* ── Reroute history ── */}
         {rerouteHistory.length > 0 && (
           <>
-            <Divider sx={{ borderColor: C.navyBorder, mb: 1.5 }} />
+            <Divider sx={{ borderColor: T.navyBorder, mb: 1.5 }} />
             <Box
               onClick={() => setHistoryExpanded(p => !p)}
               sx={{
@@ -284,18 +288,18 @@ export default function TrafficPanel({
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-                <HistoryRounded sx={{ fontSize: 13, color: C.textMuted }} />
+                <HistoryRounded sx={{ fontSize: 13, color: T.textMuted }} />
                 <Typography sx={{
                   fontSize: "0.67rem", fontWeight: 600,
                   letterSpacing: "0.1em", textTransform: "uppercase",
-                  color: C.textMuted, fontFamily: fonts.body,
+                  color: T.textMuted, fontFamily: fonts.body,
                 }}>
                   Reroute History ({rerouteHistory.length})
                 </Typography>
               </Box>
               {historyExpanded
-                ? <ExpandLessRounded sx={{ fontSize: 14, color: C.textMuted }} />
-                : <ExpandMoreRounded  sx={{ fontSize: 14, color: C.textMuted }} />
+                ? <ExpandLessRounded sx={{ fontSize: 14, color: T.textMuted }} />
+                : <ExpandMoreRounded  sx={{ fontSize: 14, color: T.textMuted }} />
               }
             </Box>
 
@@ -308,8 +312,8 @@ export default function TrafficPanel({
                   <Box
                     key={entry.id}
                     sx={{
-                      bgcolor: C.navyCard,
-                      border: `1px solid ${C.navyBorder}`,
+                      bgcolor: T.navyCard,
+                      border: `1px solid ${T.navyBorder}`,
                       borderRadius: "8px",
                       px: 1.2, py: 1, mb: 0.6,
                     }}
@@ -327,7 +331,7 @@ export default function TrafficPanel({
                         }
                         {entry.reason === "roadblock" ? "Roadblock Avoid" : "Off-Route Fix"}
                       </Typography>
-                      <Typography sx={{ fontSize: "0.6rem", color: C.textMuted, fontFamily: fonts.body }}>
+                      <Typography sx={{ fontSize: "0.6rem", color: T.textMuted, fontFamily: fonts.body }}>
                         {entry.timestamp}
                       </Typography>
                     </Box>
@@ -345,7 +349,7 @@ export default function TrafficPanel({
                         label={`${entry.newDuration} min`}
                         size="small"
                         sx={{
-                          bgcolor: "rgba(59,130,246,0.08)", color: C.blue,
+                          bgcolor: "rgba(59,130,246,0.08)", color: T.blue,
                           fontSize: "0.62rem", height: 18, fontFamily: fonts.body,
                         }}
                       />
@@ -353,7 +357,7 @@ export default function TrafficPanel({
                         label={`${distDiff > 0 ? "+" : ""}${distDiff.toFixed(1)} km`}
                         size="small"
                         sx={{
-                          bgcolor: "rgba(255,255,255,0.03)", color: C.textMuted,
+                          bgcolor: "rgba(255,255,255,0.03)", color: T.textMuted,
                           fontSize: "0.62rem", height: 18, fontFamily: fonts.body,
                         }}
                       />

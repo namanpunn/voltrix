@@ -115,7 +115,7 @@ function AROverlay({ direction, distanceToNext, streetName, speed }) {
         {/* Outer glow ring */}
         <Box sx={{
           position: "relative",
-          width: 120, height: 120,
+          width: { xs: 90, sm: 120 }, height: { xs: 90, sm: 120 },
           borderRadius: "50%",
           border: `3px solid ${cfg.color}40`,
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -126,14 +126,14 @@ function AROverlay({ direction, distanceToNext, streetName, speed }) {
           },
         }}>
           <Box sx={{
-            width: 90, height: 90,
+            width: { xs: 66, sm: 90 }, height: { xs: 66, sm: 90 },
             borderRadius: "50%",
             background: `radial-gradient(circle, ${cfg.color}22 0%, ${cfg.color}08 70%, transparent 100%)`,
             border: `2px solid ${cfg.color}60`,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <IconComp sx={{
-              fontSize: 52, color: cfg.color,
+              fontSize: { xs: 36, sm: 52 }, color: cfg.color,
               transform: `rotate(${cfg.rotate}deg)`,
               filter: `drop-shadow(0 0 8px ${cfg.color})`,
             }} />
@@ -173,8 +173,8 @@ function AROverlay({ direction, distanceToNext, streetName, speed }) {
       {/* Distance pill — bottom center */}
       {distanceToNext && (
         <Box sx={{
-          position: "absolute", bottom: 90,
-          px: 2, py: 0.8,
+          position: "absolute", bottom: { xs: 70, sm: 90 },
+          px: { xs: 1.5, sm: 2 }, py: 0.8,
           bgcolor: "rgba(10,15,30,0.8)",
           backdropFilter: "blur(12px)",
           border: `1px solid ${C.navyBorder}`,
@@ -196,7 +196,7 @@ function AROverlay({ direction, distanceToNext, streetName, speed }) {
       {/* Speed pill — bottom right */}
       {speed != null && (
         <Box sx={{
-          position: "absolute", bottom: 90, right: 20,
+          position: "absolute", bottom: { xs: 70, sm: 90 }, right: { xs: 12, sm: 20 },
           px: 1.5, py: 0.7,
           bgcolor: "rgba(10,15,30,0.75)",
           backdropFilter: "blur(10px)",
@@ -238,33 +238,33 @@ function HUDBar({ routeInfo, stepIndex, totalSteps, onClose }) {
     <Box sx={{
       position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
       display: "flex", alignItems: "center", justifyContent: "space-between",
-      px: 2, py: 1.5,
+      px: { xs: 1.5, sm: 2 }, py: { xs: 1, sm: 1.5 },
       background: "linear-gradient(180deg, rgba(10,15,30,0.9) 0%, transparent 100%)",
     }}>
       {/* Left: route summary */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.8, sm: 1.2 } }}>
         <Box sx={{
-          width: 32, height: 32, borderRadius: "9px",
+          width: { xs: 28, sm: 32 }, height: { xs: 28, sm: 32 }, borderRadius: "9px",
           background: `linear-gradient(135deg, ${C.cyan}, ${C.blue})`,
           display: "flex", alignItems: "center", justifyContent: "center",
           boxShadow: `0 0 12px ${C.cyanGlow}`,
         }}>
-          <Navigation sx={{ fontSize: 16, color: "#fff" }} />
+          <Navigation sx={{ fontSize: { xs: 14, sm: 16 }, color: "#fff" }} />
         </Box>
         <Box>
-          <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, color: C.textPrimary, fontFamily: fonts.display, lineHeight: 1 }}>
+          <Typography sx={{ fontSize: { xs: "0.7rem", sm: "0.78rem" }, fontWeight: 700, color: C.textPrimary, fontFamily: fonts.display, lineHeight: 1 }}>
             AR Navigation
           </Typography>
           {routeInfo && (
-            <Typography sx={{ fontSize: "0.65rem", color: C.textMuted, fontFamily: fonts.body }}>
+            <Typography sx={{ fontSize: { xs: "0.58rem", sm: "0.65rem" }, color: C.textMuted, fontFamily: fonts.body }}>
               {routeInfo.distance} km · {routeInfo.duration} min remaining
             </Typography>
           )}
         </Box>
       </Box>
 
-      {/* Center: step progress */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+      {/* Center: step progress — hidden on very small screens */}
+      <Box sx={{ display: { xs: "none", sm: "flex" }, alignItems: "center", gap: 0.5 }}>
         {[...Array(Math.min(totalSteps, 8))].map((_, i) => (
           <Box key={i} sx={{
             width: i === stepIndex ? 16 : 5,
@@ -398,17 +398,17 @@ export default function CameraView({ routeCoords, routeInfo, onClose }) {
           background: `radial-gradient(ellipse at 50% 40%, rgba(34,211,238,0.08) 0%, transparent 70%)`,
         }}>
           <Box sx={{
-            width: 80, height: 80, borderRadius: "22px",
+            width: { xs: 60, sm: 80 }, height: { xs: 60, sm: 80 }, borderRadius: { xs: "18px", sm: "22px" },
             background: `linear-gradient(135deg, ${C.cyan}20, ${C.blue}20)`,
             border: `1px solid ${C.cyan}30`,
             display: "flex", alignItems: "center", justifyContent: "center",
             boxShadow: `0 0 40px ${C.cyanGlow}`,
           }}>
-            <CameraAlt sx={{ fontSize: 38, color: C.cyan }} />
+            <CameraAlt sx={{ fontSize: { xs: 28, sm: 38 }, color: C.cyan }} />
           </Box>
 
-          <Box sx={{ textAlign: "center", maxWidth: 320 }}>
-            <Typography sx={{ fontSize: "1.2rem", fontWeight: 700, color: C.textPrimary, fontFamily: fonts.display, mb: 1 }}>
+          <Box sx={{ textAlign: "center", maxWidth: 320, px: 2 }}>
+            <Typography sx={{ fontSize: { xs: "1rem", sm: "1.2rem" }, fontWeight: 700, color: C.textPrimary, fontFamily: fonts.display, mb: 1 }}>
               AR Navigation Ready
             </Typography>
             <Typography sx={{ fontSize: "0.82rem", color: C.textMuted, fontFamily: fonts.body, lineHeight: 1.6 }}>

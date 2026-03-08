@@ -102,7 +102,7 @@ export default function RerouteAlert({
       top: 16, left: "50%",
       transform: "translateX(-50%)",
       zIndex: 50,
-      width: "min(420px, 90vw)",
+      width: "min(420px, calc(100vw - 32px))",
       animation: "slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1)",
       "@keyframes slideDown": {
         from: { opacity: 0, transform: "translateX(-50%) translateY(-20px)" },

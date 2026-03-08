@@ -8,8 +8,9 @@ import { Box, Typography, Button, Collapse, IconButton } from "@mui/material";
 import {
   AutoAwesome, CompareArrows, Close, ArrowForward,
 } from "@mui/icons-material";
-import { C, fonts } from "../app/utils/theme";
+import { C, getColors, fonts } from "../app/utils/theme";
 import PlaceAutocomplete from "./PlaceAutocomplete";
+import { useTheme } from "../app/context/ThemeContext";
 
 const SUGGESTIONS = [
   "Qutub Minar Road",
@@ -22,6 +23,8 @@ const SUGGESTIONS = [
 export default function AlternateRouteInput({ onCompare, onClear, loading, hasAlternate }) {
   const [viaText,  setViaText]  = useState("");
   const [expanded, setExpanded] = useState(false);
+  const { isDark } = useTheme();
+  const T = getColors(isDark);
 
   const handleCompare = () => {
     if (!viaText.trim()) return;
@@ -61,14 +64,14 @@ export default function AlternateRouteInput({ onCompare, onClear, loading, hasAl
             <AutoAwesome sx={{ fontSize: 13, color: "#a78bfa" }} />
           </Box>
           <Box>
-            <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: C.textSub, fontFamily: fonts.body }}>
+            <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: T.textSub, fontFamily: fonts.body }}>
               Compare alternate route
             </Typography>
-            <Typography sx={{ fontSize: "0.68rem", color: C.textMuted }}>
+            <Typography sx={{ fontSize: "0.68rem", color: T.textMuted }}>
               What if I go via a different road?
             </Typography>
           </Box>
-          <ArrowForward sx={{ fontSize: 14, color: C.textMuted, ml: "auto" }} />
+          <ArrowForward sx={{ fontSize: 14, color: T.textMuted, ml: "auto" }} />
         </Box>
       )}
 
@@ -95,7 +98,7 @@ export default function AlternateRouteInput({ onCompare, onClear, loading, hasAl
             <IconButton
               size="small"
               onClick={() => { setExpanded(false); setViaText(""); }}
-              sx={{ color: C.textMuted, width: 22, height: 22, "&:hover": { color: C.rose } }}
+              sx={{ color: T.textMuted, width: 22, height: 22, "&:hover": { color: T.rose } }}
             >
               <Close sx={{ fontSize: 13 }} />
             </IconButton>
@@ -120,11 +123,11 @@ export default function AlternateRouteInput({ onCompare, onClear, loading, hasAl
                 onClick={() => setViaText(s)}
                 sx={{
                   fontSize: "0.65rem", fontWeight: 500,
-                  color: viaText === s ? "#a78bfa" : C.textMuted,
+                  color: viaText === s ? "#a78bfa" : T.textMuted,
                   bgcolor: viaText === s
                     ? "rgba(167,139,250,0.12)"
                     : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${viaText === s ? "rgba(167,139,250,0.3)" : C.navyBorder}`,
+                  border: `1px solid ${viaText === s ? "rgba(167,139,250,0.3)" : T.navyBorder}`,
                   borderRadius: "6px",
                   px: 1, py: 0.4,
                   cursor: "pointer",
@@ -187,9 +190,9 @@ export default function AlternateRouteInput({ onCompare, onClear, loading, hasAl
             onClick={handleClearAlt}
             sx={{
               textTransform: "none", fontSize: "0.7rem",
-              color: C.textMuted, fontFamily: fonts.body,
+              color: T.textMuted, fontFamily: fonts.body,
               py: 0.3, px: 1, minWidth: "auto",
-              "&:hover": { color: C.rose },
+              "&:hover": { color: T.rose },
             }}
           >
             Exit split

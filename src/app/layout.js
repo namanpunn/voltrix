@@ -1,5 +1,7 @@
 import { DM_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "./context/ThemeContext";
+import { LocationProvider } from "./context/LocationContext";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -18,11 +20,22 @@ export const metadata = {
   description: "Vision-powered navigation with intelligent route optimization and real-time visual guidance.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
-        {children}
+        <LocationProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </LocationProvider>
       </body>
     </html>
   );

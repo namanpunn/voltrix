@@ -6,30 +6,33 @@ import {
   StraightenOutlined, AccessTime,
   TrendingUp, TrendingDown, TrendingFlat,
 } from "@mui/icons-material";
-import { C, fonts } from "../app/utils/theme";
+import { C, getColors, fonts } from "../app/utils/theme";
+import { useTheme } from "../app/context/ThemeContext";
 
 // Metric tile
-function MetricTile({ icon, value, unit, label, color }) {
+function MetricTile({ icon, value, unit, label, color, T }) {
   return (
     <Box sx={{
       flex: 1,
-      bgcolor: `rgba(${color === C.cyan ? "34,211,238" : "59,130,246"},0.06)`,
-      border: `1px solid rgba(${color === C.cyan ? "34,211,238" : "59,130,246"},0.14)`,
+      bgcolor: `rgba(${color === T.cyan ? "34,211,238" : "59,130,246"},0.06)`,
+      border: `1px solid rgba(${color === T.cyan ? "34,211,238" : "59,130,246"},0.14)`,
       borderRadius: "10px",
-      p: 1.5,
+      p: { xs: 1, sm: 1.5 },
       display: "flex", flexDirection: "column", alignItems: "center", gap: 0.3,
+      transition: "background-color 0.4s ease, border-color 0.4s ease",
+      minWidth: 0,
     }}>
       {icon}
       <Typography sx={{
-        fontSize: "1.05rem", fontWeight: 700,
+        fontSize: { xs: "0.9rem", sm: "1.05rem" }, fontWeight: 700,
         color, fontFamily: fonts.display, lineHeight: 1,
       }}>
         {value}
       </Typography>
-      <Typography sx={{ fontSize: "0.6rem", color: C.textMuted, letterSpacing: "0.06em" }}>
+      <Typography sx={{ fontSize: "0.6rem", color: T.textMuted, letterSpacing: "0.06em" }}>
         {unit}
       </Typography>
-      <Typography sx={{ fontSize: "0.65rem", color: C.textMuted }}>
+      <Typography sx={{ fontSize: "0.65rem", color: T.textMuted }}>
         {label}
       </Typography>
     </Box>
@@ -37,7 +40,7 @@ function MetricTile({ icon, value, unit, label, color }) {
 }
 
 // Comparison badge for split screen
-function DiffBadge({ primaryVal, altVal, lowerIsBetter = true }) {
+function DiffBadge({ primaryVal, altVal, lowerIsBetter = true, T }) {
   const pVal = parseFloat(primaryVal) || 0;
   const aVal = parseFloat(altVal) || 0;
   const diff = aVal - pVal;
@@ -45,7 +48,7 @@ function DiffBadge({ primaryVal, altVal, lowerIsBetter = true }) {
   if (Math.abs(diff) < 0.01) return (
     <Chip icon={<TrendingFlat sx={{ fontSize: "12px !important" }} />}
       label="Same" size="small"
-      sx={{ bgcolor: "rgba(100,116,139,0.15)", color: C.textMuted, fontSize: "0.65rem", height: 20 }} />
+      sx={{ bgcolor: "rgba(100,116,139,0.15)", color: T.textMuted, fontSize: "0.65rem", height: 20 }} />
   );
   const better = lowerIsBetter ? diff < 0 : diff > 0;
   return (
@@ -69,18 +72,21 @@ function DiffBadge({ primaryVal, altVal, lowerIsBetter = true }) {
 
 export default function RouteInfoCard({ route, compareRoute = null, variant = "primary" }) {
   if (!route) return null;
+  const { isDark } = useTheme();
+  const T = getColors(isDark);
 
   const isAlt    = variant === "alternate";
-  const accentClr = isAlt ? "#a78bfa" : C.cyan;
+  const accentClr = isAlt ? "#a78bfa" : T.cyan;
 
   return (
     <Paper elevation={0} sx={{
-      bgcolor: C.navyCard,
-      border: `1px solid ${isAlt ? "rgba(167,139,250,0.2)" : C.navyBorder}`,
+      bgcolor: T.navyCard,
+      border: `1px solid ${isAlt ? "rgba(167,139,250,0.2)" : T.navyBorder}`,
       borderRadius: "12px",
       p: 2, mb: 1.5,
       position: "relative",
       overflow: "hidden",
+      transition: "background-color 0.4s ease, border-color 0.4s ease",
       "&::before": {
         content: '""',
         position: "absolute",
@@ -88,18 +94,18 @@ export default function RouteInfoCard({ route, compareRoute = null, variant = "p
         height: "2px",
         background: isAlt
           ? "linear-gradient(90deg, #a78bfa, #7c3aed)"
-          : `linear-gradient(90deg, ${C.cyan}, ${C.blue})`,
+          : `linear-gradient(90deg, ${T.cyan}, ${T.blue})`,
       },
     }}>
       {/* Route path */}
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.5 }}>
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.4 }}>
           <Box sx={{ width: 9, height: 9, borderRadius: "50%", bgcolor: accentClr, boxShadow: `0 0 7px ${accentClr}` }} />
-          <Box sx={{ width: 1.5, height: 24, bgcolor: C.navyBorder, my: 0.3 }} />
+          <Box sx={{ width: 1.5, height: 24, bgcolor: T.navyBorder, my: 0.3 }} />
           {isAlt && route.viaText && (
             <>
               <Box sx={{ width: 7, height: 7, borderRadius: "2px", bgcolor: "#a78bfa", transform: "rotate(45deg)", my: 0.2 }} />
-              <Box sx={{ width: 1.5, height: 24, bgcolor: C.navyBorder, my: 0.3 }} />
+              <Box sx={{ width: 1.5, height: 24, bgcolor: T.navyBorder, my: 0.3 }} />
             </>
           )}
           <Box sx={{ width: 9, height: 9, borderRadius: "50%", bgcolor: C.rose, boxShadow: `0 0 7px ${C.rose}` }} />
@@ -107,7 +113,7 @@ export default function RouteInfoCard({ route, compareRoute = null, variant = "p
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{
-            fontSize: "0.8rem", color: C.textSub, fontWeight: 500,
+            fontSize: "0.8rem", color: T.textSub, fontWeight: 500,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {route.fromText}
@@ -123,14 +129,14 @@ export default function RouteInfoCard({ route, compareRoute = null, variant = "p
               <Typography sx={{ fontSize: "0.68rem", color: "#a78bfa", fontWeight: 600 }}>
                 via
               </Typography>
-              <Typography sx={{ fontSize: "0.72rem", color: C.textSub }}>
+              <Typography sx={{ fontSize: "0.72rem", color: T.textSub }}>
                 {route.viaText}
               </Typography>
             </Box>
           )}
 
           <Typography sx={{
-            fontSize: "0.8rem", color: C.textSub, fontWeight: 500,
+            fontSize: "0.8rem", color: T.textSub, fontWeight: 500,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             mt: isAlt && route.viaText ? 0.6 : 2,
           }}>
@@ -139,7 +145,7 @@ export default function RouteInfoCard({ route, compareRoute = null, variant = "p
         </Box>
       </Box>
 
-      <Divider sx={{ borderColor: C.navyBorder, mb: 1.5 }} />
+      <Divider sx={{ borderColor: T.navyBorder, mb: 1.5 }} />
 
       {/* Metrics */}
       <Box sx={{ display: "flex", gap: 1.5, mb: compareRoute ? 1.5 : 0 }}>
@@ -149,13 +155,15 @@ export default function RouteInfoCard({ route, compareRoute = null, variant = "p
           unit="KM"
           label="Distance"
           color={accentClr}
+          T={T}
         />
         <MetricTile
-          icon={<AccessTime sx={{ fontSize: 15, color: C.blue }} />}
+          icon={<AccessTime sx={{ fontSize: 15, color: T.blue }} />}
           value={route.duration}
           unit="MIN"
           label="Duration"
-          color={C.blue}
+          color={T.blue}
+          T={T}
         />
       </Box>
 
@@ -164,15 +172,15 @@ export default function RouteInfoCard({ route, compareRoute = null, variant = "p
         <Box sx={{
           display: "flex", gap: 1, alignItems: "center",
           bgcolor: "rgba(255,255,255,0.02)",
-          border: `1px solid ${C.navyBorder}`,
+          border: `1px solid ${T.navyBorder}`,
           borderRadius: "8px",
           px: 1.2, py: 0.8,
         }}>
-          <Typography sx={{ fontSize: "0.65rem", color: C.textMuted, mr: 0.5 }}>
+          <Typography sx={{ fontSize: "0.65rem", color: T.textMuted, mr: 0.5 }}>
             vs primary:
           </Typography>
-          <DiffBadge primaryVal={compareRoute.distance} altVal={route.distance} lowerIsBetter />
-          <DiffBadge primaryVal={compareRoute.duration} altVal={route.duration} lowerIsBetter />
+          <DiffBadge primaryVal={compareRoute.distance} altVal={route.distance} lowerIsBetter T={T} />
+          <DiffBadge primaryVal={compareRoute.duration} altVal={route.duration} lowerIsBetter T={T} />
         </Box>
       )}
     </Paper>

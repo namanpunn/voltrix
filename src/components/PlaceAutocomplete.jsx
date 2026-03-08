@@ -8,8 +8,10 @@ import {
   Box, Typography, CircularProgress, Paper,
 } from "@mui/material";
 import { LocationOn, Search, History, CloseRounded } from "@mui/icons-material";
-import { C, darkInputSx, fonts } from "../app/utils/theme";
+import { C, getColors, fonts } from "../app/utils/theme";
 import { fetchSuggestions } from "../app/hooks/useRoute";
+import { useTheme } from "../app/context/ThemeContext";
+import { useLocation } from "../app/context/LocationContext";
 
 // Debounce helper
 function useDebouncedCallback(fn, delay) {
@@ -61,6 +63,9 @@ export default function PlaceAutocomplete({
   placeholder = "Search a place...",
   disabled = false,
 }) {
+  const { isDark } = useTheme();
+  const { userCoords } = useLocation();
+  const T = getColors(isDark);
   const [suggestions,   setSuggestions]   = useState([]);
   const [recents,        setRecents]       = useState([]);
   const [showRecents,    setShowRecents]   = useState(false);
@@ -75,7 +80,7 @@ export default function PlaceAutocomplete({
     if (q.trim().length < 3) { setSuggestions([]); setOpen(false); return; }
     setFetching(true);
     try {
-      const results = await fetchSuggestions(q);
+      const results = await fetchSuggestions(q, userCoords);
       setSuggestions(results);
       setOpen(results.length > 0);
       setActiveIdx(-1);
@@ -84,7 +89,7 @@ export default function PlaceAutocomplete({
     } finally {
       setFetching(false);
     }
-  }, []);
+  }, [userCoords]);
 
   const debouncedFetch = useDebouncedCallback(doFetch, 350);
 
@@ -177,8 +182,9 @@ export default function PlaceAutocomplete({
       <Typography sx={{
         fontSize: "0.68rem", fontWeight: 600,
         letterSpacing: "0.08em", textTransform: "uppercase",
-        color: C.textMuted, mb: 0.8,
+        color: T.textMuted, mb: 0.8,
         fontFamily: fonts.body,
+        transition: "color 0.4s ease",
       }}>
         {label}
       </Typography>
@@ -186,11 +192,11 @@ export default function PlaceAutocomplete({
       {/* ── Input field ── */}
       <Box sx={{
         display: "flex", alignItems: "center", gap: 1.2,
-        bgcolor: C.navyCard,
-        border: `1px solid ${open ? dotColor : C.navyBorder}`,
+        bgcolor: T.navyCard,
+        border: `1px solid ${open ? dotColor : T.navyBorder}`,
         borderRadius: "10px",
         px: 1.5, py: 1.1,
-        transition: "border-color 0.2s, box-shadow 0.2s",
+        transition: "border-color 0.2s, box-shadow 0.2s, background-color 0.4s ease",
         boxShadow: open ? `0 0 0 3px rgba(34,211,238,0.08)` : "none",
         "&:hover": { borderColor: "rgba(34,211,238,0.35)" },
         cursor: disabled ? "not-allowed" : "text",
@@ -225,16 +231,17 @@ export default function PlaceAutocomplete({
             background: "transparent",
             border: "none",
             outline: "none",
-            color: C.textPrimary,
+            color: T.textPrimary,
             fontSize: "0.85rem",
             fontFamily: fonts.body,
             caretColor: dotColor,
+            transition: "color 0.4s ease",
           }}
         />
 
         {fetching
           ? <CircularProgress size={13} sx={{ color: dotColor, flexShrink: 0 }} />
-          : <Search sx={{ fontSize: 15, color: C.textMuted, flexShrink: 0 }} />
+          : <Search sx={{ fontSize: 15, color: T.textMuted, flexShrink: 0 }} />
         }
       </Box>
 
@@ -245,16 +252,16 @@ export default function PlaceAutocomplete({
           top: "calc(100% + 6px)",
           left: 0, right: 0,
           zIndex: 1000,
-          bgcolor: C.navyCard,
-          border: `1px solid ${C.navyBorder}`,
+          bgcolor: T.navyCard,
+          border: `1px solid ${T.navyBorder}`,
           borderRadius: "12px",
           overflow: "hidden",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+          boxShadow: isDark ? "0 16px 48px rgba(0,0,0,0.6)" : "0 16px 48px rgba(0,0,0,0.12)",
           maxHeight: 260,
           overflowY: "auto",
           "&::-webkit-scrollbar": { width: 4 },
           "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
-          "&::-webkit-scrollbar-thumb": { bgcolor: C.navyBorder, borderRadius: 2 },
+          "&::-webkit-scrollbar-thumb": { bgcolor: T.navyBorder, borderRadius: 2 },
         }}>
           {suggestions.map((s, i) => (
             <Box
@@ -265,12 +272,12 @@ export default function PlaceAutocomplete({
                 display: "flex", alignItems: "flex-start", gap: 1.2,
                 px: 1.5, py: 1.1,
                 cursor: "pointer",
-                bgcolor: activeIdx === i ? C.navyCardHov : "transparent",
+                bgcolor: activeIdx === i ? T.navyCardHov : "transparent",
                 borderBottom: i < suggestions.length - 1
-                  ? `1px solid ${C.navyBorder}`
+                  ? `1px solid ${T.navyBorder}`
                   : "none",
                 transition: "background 0.12s",
-                "&:hover": { bgcolor: C.navyCardHov },
+                "&:hover": { bgcolor: T.navyCardHov },
               }}
             >
               <Box sx={{
@@ -281,31 +288,39 @@ export default function PlaceAutocomplete({
                 display: "flex", alignItems: "center", justifyContent: "center",
                 mt: 0.1,
               }}>
-                <LocationOn sx={{ fontSize: 13, color: activeIdx === i ? dotColor : C.textMuted }} />
+                <LocationOn sx={{ fontSize: 13, color: activeIdx === i ? dotColor : T.textMuted }} />
               </Box>
 
               <Box sx={{ minWidth: 0 }}>
                 <Typography sx={{
                   fontSize: "0.8rem", fontWeight: 500,
-                  color: activeIdx === i ? C.textPrimary : C.textSub,
+                  color: activeIdx === i ? T.textPrimary : T.textSub,
                   fontFamily: fonts.body,
                   lineHeight: 1.3,
                 }}>
                   {s.shortName}
                 </Typography>
                 <Typography sx={{
-                  fontSize: "0.67rem", color: C.textMuted,
+                  fontSize: "0.67rem", color: T.textMuted,
                   fontFamily: fonts.body, lineHeight: 1.4, mt: 0.2,
                 }}>
                   {truncate(s.label)}
                 </Typography>
               </Box>
 
-              <Box sx={{ ml: "auto", flexShrink: 0 }}>
+              <Box sx={{ ml: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 0.6 }}>
+                {s.dist != null && (
+                  <Typography sx={{
+                    fontSize: "0.58rem", fontWeight: 600,
+                    color: T.textMuted, fontFamily: fonts.body,
+                  }}>
+                    {s.dist < 1 ? `${Math.round(s.dist * 1000)}m` : `${s.dist.toFixed(1)}km`}
+                  </Typography>
+                )}
                 <Typography sx={{
                   fontSize: "0.58rem", fontWeight: 600,
                   letterSpacing: "0.07em", textTransform: "uppercase",
-                  color: activeIdx === i ? dotColor : C.textMuted,
+                  color: activeIdx === i ? dotColor : T.textMuted,
                   bgcolor: activeIdx === i
                     ? `rgba(34,211,238,0.1)`
                     : "rgba(255,255,255,0.04)",
@@ -326,29 +341,29 @@ export default function PlaceAutocomplete({
           top: "calc(100% + 6px)",
           left: 0, right: 0,
           zIndex: 1000,
-          bgcolor: C.navyCard,
-          border: `1px solid ${C.navyBorder}`,
+          bgcolor: T.navyCard,
+          border: `1px solid ${T.navyBorder}`,
           borderRadius: "12px",
           overflow: "hidden",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+          boxShadow: isDark ? "0 16px 48px rgba(0,0,0,0.6)" : "0 16px 48px rgba(0,0,0,0.12)",
         }}>
           {/* Header */}
           <Box sx={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             px: 1.5, py: 0.8,
-            borderBottom: `1px solid ${C.navyBorder}`,
+            borderBottom: `1px solid ${T.navyBorder}`,
           }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
-              <History sx={{ fontSize: 12, color: C.textMuted }} />
-              <Typography sx={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.textMuted, fontFamily: fonts.body }}>
+              <History sx={{ fontSize: 12, color: T.textMuted }} />
+              <Typography sx={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.textMuted, fontFamily: fonts.body }}>
                 Recent Searches
               </Typography>
             </Box>
             <Box
               onMouseDown={handleClearRecents}
-              sx={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 0.3, "&:hover .clear-text": { color: C.rose } }}
+              sx={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 0.3, "&:hover .clear-text": { color: "#e11d48" } }}
             >
-              <Typography className="clear-text" sx={{ fontSize: "0.6rem", color: C.textMuted, fontFamily: fonts.body, transition: "color 0.15s" }}>
+              <Typography className="clear-text" sx={{ fontSize: "0.6rem", color: T.textMuted, fontFamily: fonts.body, transition: "color 0.15s" }}>
                 Clear all
               </Typography>
             </Box>
@@ -364,10 +379,10 @@ export default function PlaceAutocomplete({
                 display: "flex", alignItems: "center", gap: 1.2,
                 px: 1.5, py: 1,
                 cursor: "pointer",
-                bgcolor: activeIdx === i ? C.navyCardHov : "transparent",
-                borderBottom: i < recents.length - 1 ? `1px solid ${C.navyBorder}` : "none",
+                bgcolor: activeIdx === i ? T.navyCardHov : "transparent",
+                borderBottom: i < recents.length - 1 ? `1px solid ${T.navyBorder}` : "none",
                 transition: "background 0.12s",
-                "&:hover": { bgcolor: C.navyCardHov },
+                "&:hover": { bgcolor: T.navyCardHov },
               }}
             >
               <Box sx={{
@@ -375,10 +390,10 @@ export default function PlaceAutocomplete({
                 bgcolor: "rgba(255,255,255,0.04)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <History sx={{ fontSize: 12, color: C.textMuted }} />
+                <History sx={{ fontSize: 12, color: T.textMuted }} />
               </Box>
               <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: C.textSub, fontFamily: fonts.body, lineHeight: 1.3 }}>
+                <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: T.textSub, fontFamily: fonts.body, lineHeight: 1.3 }}>
                   {r.shortName}
                 </Typography>
               </Box>
