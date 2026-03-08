@@ -2,22 +2,30 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Box, IconButton, Tooltip } from "@mui/material";
-import { TrafficRounded } from "@mui/icons-material";
-import Sidebar      from "../../components/Sidebar";
-import MapView      from "../../components/MapView";
-import CameraView   from "../../components/CameraView";
-import RerouteAlert from "../../components/RerouteAlert";
-import { useRoute }     from "../hooks/useRoute";
-import { useRerouting } from "../hooks/useRerouting";
+import { Box, IconButton, Tooltip, useMediaQuery } from "@mui/material";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import { TrafficRounded, DarkModeRounded, LightModeRounded } from "@mui/icons-material";
+import Sidebar           from "../../components/Sidebar";
+import MobileBottomSheet from "../../components/MobileBottomSheet";
+import MapView           from "../../components/MapView";
+import CameraView        from "../../components/CameraView";
+import RerouteAlert      from "../../components/RerouteAlert";
+import { useRoute }      from "../hooks/useRoute";
+import { useRerouting }  from "../hooks/useRerouting";
+import { useTheme }      from "../context/ThemeContext";
 
 export default function NavigationPage() {
   const [source,      setSource]      = useState("");
   const [destination, setDestination] = useState("");
   const [showCamera,  setShowCamera]  = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
+  const [sheetSnap,   setSheetSnap]   = useState("full"); // mobile bottom sheet snap
+  const { isDark, toggleTheme } = useTheme();
+  const muiTheme = useMuiTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const mapRef = useRef(null);
   const lastRouteRef = useRef(null); // cache last route data for traffic toggle
+  const lastAlternateRef = useRef(null); // cache last alternate route data for traffic toggle
 
   // ── Route state ──────────────────────────────────────────────────────────
   const {
@@ -87,23 +95,33 @@ export default function NavigationPage() {
     } else {
       mapRef.current?.drawPrimary({ coordinates: route.coordinates, fromCoords: from, toCoords: to, labels });
     }
-  }, [source, destination, calculatePrimary, setError, showTraffic]);
+    // Auto-minimize bottom sheet on mobile after route is drawn
+    if (isMobile) setSheetSnap("peek");
+  }, [source, destination, calculatePrimary, setError, showTraffic, isMobile]);
 
   const handleCompareAlternate = useCallback(async (viaText) => {
     const result = await calculateAlternate(viaText);
     if (!result || !primaryRoute) return;
-    // drawAlternate buffers the draw if the alternate map hasn't mounted yet
-    mapRef.current?.drawAlternate({
-      coordinates: result.coordinates,
-      fromCoords: primaryRoute.fromCoords,
-      toCoords: primaryRoute.toCoords,
-      labels: { from: source, to: destination },
-    });
-  }, [calculateAlternate, primaryRoute]);
+    const labels = { from: source, to: destination };
+    const from = primaryRoute.fromCoords;
+    const to = primaryRoute.toCoords;
+    lastAlternateRef.current = { from, to, route: result, labels };
+    if (showTraffic && result.trafficSegments?.length) {
+      mapRef.current?.drawAlternateTraffic({ trafficSegments: result.trafficSegments, fromCoords: from, toCoords: to, labels });
+    } else {
+      mapRef.current?.drawAlternate({
+        coordinates: result.coordinates,
+        fromCoords: from,
+        toCoords: to,
+        labels,
+      });
+    }
+  }, [calculateAlternate, primaryRoute, source, destination, showTraffic]);
 
   const handleClearAlternate = useCallback(() => {
     clearAlternate();
     mapRef.current?.clearAlternate();
+    lastAlternateRef.current = null;
   }, [clearAlternate]);
 
   // ── Choose route from split view ─────────────────────────────────────────
@@ -150,7 +168,8 @@ export default function NavigationPage() {
     mapRef.current?.clearAll();
     setSource("");
     setDestination("");
-  }, [clearAll, stopMonitoring]);
+    if (isMobile) setSheetSnap("full");
+  }, [clearAll, stopMonitoring, isMobile]);
 
   const handleSwap = useCallback(() => {
     const newSrc = destination;
@@ -176,6 +195,7 @@ export default function NavigationPage() {
   const handleToggleTraffic = useCallback(() => {
     setShowTraffic(prev => {
       const next = !prev;
+      // Redraw primary route
       const d = lastRouteRef.current;
       if (d) {
         const labels = d.labels || {};
@@ -185,6 +205,16 @@ export default function NavigationPage() {
           mapRef.current?.drawPrimary({ coordinates: d.route.coordinates, fromCoords: d.from, toCoords: d.to, labels });
         }
       }
+      // Redraw alternate route (if split screen is active)
+      const a = lastAlternateRef.current;
+      if (a) {
+        const labels = a.labels || {};
+        if (next && a.route.trafficSegments?.length) {
+          mapRef.current?.drawAlternateTraffic({ trafficSegments: a.route.trafficSegments, fromCoords: a.from, toCoords: a.to, labels });
+        } else {
+          mapRef.current?.drawAlternate({ coordinates: a.route.coordinates, fromCoords: a.from, toCoords: a.to, labels });
+        }
+      }
       return next;
     });
   }, []);
@@ -192,46 +222,81 @@ export default function NavigationPage() {
   return (
     <Box sx={{
       display: "flex", height: "100vh",
-      overflow: "hidden", bgcolor: "#0a0f1e",
+      overflow: "hidden", bgcolor: isDark ? "#0a0f1e" : "#f8fafc",
       fontFamily: "'DM Sans', sans-serif",
+      transition: "background-color 0.4s ease",
+      position: "relative",
     }}>
-      <Sidebar
-        source={source}           setSource={setSource}
-        destination={destination} setDestination={setDestination}
-        onGetRoute={handleGetRoute}
-        onSwap={handleSwap}
-        onClear={handleClear}
-        onCompareAlternate={handleCompareAlternate}
-        onClearAlternate={handleClearAlternate}
-        onStartAR={() => setShowCamera(true)}
-        // Step 4 props
-        rerouteStatus={rerouteStatus}
-        rerouteHistory={rerouteHistory}
-        roadblocks={roadblocks}
-        distFromRoute={distFromRoute}
-        onReportRoadblock={reportRoadblock}
-        onRemoveRoadblock={removeRoadblock}
-        onSimulateOffRoute={simulateOffRoute}
-        onRecalculate={handleRecalculate}
-        // base
-        loading={loading}
-        error={error}
-        primaryRoute={primaryRoute}
-        alternateRoute={alternateRoute}
-        showSplit={showSplit}
-      />
 
-      {/* Map with RerouteAlert overlay */}
+      {/* ── Desktop: sidebar on the left ──────────────────────────────── */}
+      {!isMobile && (
+        <Sidebar
+          source={source}           setSource={setSource}
+          destination={destination} setDestination={setDestination}
+          onGetRoute={handleGetRoute}
+          onSwap={handleSwap}
+          onClear={handleClear}
+          onCompareAlternate={handleCompareAlternate}
+          onClearAlternate={handleClearAlternate}
+          onStartAR={() => setShowCamera(true)}
+          rerouteStatus={rerouteStatus}
+          rerouteHistory={rerouteHistory}
+          roadblocks={roadblocks}
+          distFromRoute={distFromRoute}
+          onReportRoadblock={reportRoadblock}
+          onRemoveRoadblock={removeRoadblock}
+          onSimulateOffRoute={simulateOffRoute}
+          onRecalculate={handleRecalculate}
+          loading={loading}
+          error={error}
+          primaryRoute={primaryRoute}
+          alternateRoute={alternateRoute}
+          showSplit={showSplit}
+          isDark={isDark}
+        />
+      )}
+
+      {/* ── Map (full screen on mobile, flex on desktop) ──────────────── */}
       <Box sx={{ flex: 1, position: "relative" }}>
-        <MapView ref={mapRef} showSplit={showSplit} loading={loading} showTraffic={showTraffic} onChoosePrimary={handleChoosePrimary} onChooseAlternate={handleChooseAlternate} />
+        <MapView ref={mapRef} showSplit={showSplit} loading={loading} showTraffic={showTraffic} isDark={isDark} onChoosePrimary={handleChoosePrimary} onChooseAlternate={handleChooseAlternate} isMobile={isMobile} />
 
-        {/* Traffic toggle button — always visible */}
+        {/* Dark / Light mode toggle */}
+        <Tooltip title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"} placement="left">
+          <IconButton
+            onClick={toggleTheme}
+            sx={{
+              position: "absolute", top: 16, right: 16, zIndex: 1000,
+              width: { xs: 38, sm: 42 }, height: { xs: 38, sm: 42 },
+              bgcolor: isDark ? "rgba(10,15,30,0.92)" : "rgba(255,255,255,0.92)",
+              border: isDark ? "1.5px solid #1e2d45" : "1.5px solid #cbd5e1",
+              backdropFilter: "blur(12px)",
+              borderRadius: "12px",
+              color: isDark ? "#f59e0b" : "#6366f1",
+              boxShadow: isDark
+                ? "0 4px 20px rgba(0,0,0,0.4)"
+                : "0 4px 20px rgba(0,0,0,0.12)",
+              transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+              "&:hover": {
+                bgcolor: isDark ? "rgba(245,158,11,0.15)" : "rgba(99,102,241,0.12)",
+                borderColor: isDark ? "rgba(245,158,11,0.5)" : "rgba(99,102,241,0.5)",
+                transform: "scale(1.08) rotate(12deg)",
+                boxShadow: isDark
+                  ? "0 0 20px rgba(245,158,11,0.25)"
+                  : "0 0 20px rgba(99,102,241,0.25)",
+              },
+            }}
+          >
+            {isDark ? <LightModeRounded sx={{ fontSize: 20 }} /> : <DarkModeRounded sx={{ fontSize: 20 }} />}
+          </IconButton>
+        </Tooltip>
+
+        {/* Traffic toggle */}
         <Tooltip title={showTraffic ? "Hide real-time traffic" : "Show real-time traffic"} placement="left">
           <IconButton
             onClick={handleToggleTraffic}
             sx={{
-              position: "absolute", top: 16, right: 16, zIndex: 1000,
-              width: 42, height: 42,
+              position: "absolute", top: { xs: 62, md: 68 }, right: 16, zIndex: 1000,
+              width: { xs: 38, sm: 42 }, height: { xs: 38, sm: 42 },
               bgcolor: showTraffic ? "rgba(34,197,94,0.22)" : "rgba(10,15,30,0.92)",
               border: showTraffic ? "1.5px solid rgba(34,197,94,0.5)" : "1.5px solid #1e2d45",
               backdropFilter: "blur(12px)",
@@ -253,7 +318,7 @@ export default function NavigationPage() {
           </IconButton>
         </Tooltip>
 
-        {/* Step 4 — floating reroute alert on the map */}
+        {/* Reroute alert overlay */}
         <RerouteAlert
           status={rerouteStatus}
           distFromRoute={distFromRoute}
@@ -262,6 +327,27 @@ export default function NavigationPage() {
           onDismiss={dismissReroute}
         />
       </Box>
+
+      {/* ── Mobile: bottom sheet overlay ──────────────────────────────── */}
+      {isMobile && (
+        <MobileBottomSheet
+          source={source}           setSource={setSource}
+          destination={destination} setDestination={setDestination}
+          onGetRoute={handleGetRoute}
+          onSwap={handleSwap}
+          onClear={handleClear}
+          onCompareAlternate={handleCompareAlternate}
+          onClearAlternate={handleClearAlternate}
+          loading={loading}
+          error={error}
+          primaryRoute={primaryRoute}
+          alternateRoute={alternateRoute}
+          showSplit={showSplit}
+          isDark={isDark}
+          sheetSnap={sheetSnap}
+          onSnapChange={setSheetSnap}
+        />
+      )}
 
       {showCamera && (
         <CameraView

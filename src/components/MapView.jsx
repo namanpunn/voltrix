@@ -176,7 +176,10 @@ function getTomTomTrafficUrl() {
 }
 
 // ── SingleMap ─────────────────────────────────────────────────────────────────
-const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, badge, showTraffic = false }, ref) {
+const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+
+const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, badge, showTraffic = false, isDark = true }, ref) {
   const divRef        = useRef(null);
   const mapRef        = useRef(null);   // L.Map instance
   const LRef          = useRef(null);   // Leaflet lib
@@ -184,6 +187,7 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
   const pendingRef    = useRef(null);   // draw call that arrived before map ready
   const initedRef     = useRef(false);  // guard against double-init (StrictMode)
   const trafficTileRef = useRef(null);  // TomTom traffic tile layer
+  const baseTileRef    = useRef(null);  // base tile layer (dark/light)
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -193,9 +197,9 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 
     ensureLeafletCSS();
 
-    let cancelled = false;
     import("leaflet").then(mod => {
-      if (cancelled) return;
+      // If DOM ref gone (real unmount), bail
+      if (!divRef.current) return;
       const L = mod.default;
 
       // Fix default icons
@@ -215,7 +219,7 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
       });
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      baseTileRef.current = L.tileLayer(isDark ? DARK_TILES : LIGHT_TILES, {
         attribution: "© OSM © CARTO", subdomains: "abcd", maxZoom: 19,
       }).addTo(map);
 
@@ -234,13 +238,27 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
         }
       }
     });
-
-    return () => {
-      cancelled = true;
-      // Don't destroy on StrictMode cleanup — only on real unmount
-      // We use initedRef so the second mount doesn't re-init
-    };
   }, []);
+
+  // ── Switch base tile layer on theme change ──────────────────────────────
+  const prevDarkRef = useRef(isDark);
+  useEffect(() => {
+    // Only swap if isDark actually changed (skip initial run when ready flips)
+    if (prevDarkRef.current === isDark) return;
+    prevDarkRef.current = isDark;
+    if (!mapRef.current || !LRef.current || !baseTileRef.current) return;
+    const map = mapRef.current;
+    const L = LRef.current;
+    const newUrl = isDark ? DARK_TILES : LIGHT_TILES;
+    map.removeLayer(baseTileRef.current);
+    baseTileRef.current = L.tileLayer(newUrl, {
+      attribution: "© OSM © CARTO", subdomains: "abcd", maxZoom: 19,
+    }).addTo(map);
+    // ensure traffic tile stays on top
+    if (trafficTileRef.current && map.hasLayer(trafficTileRef.current)) {
+      trafficTileRef.current.bringToFront();
+    }
+  }, [isDark]);
 
   // ── Toggle TomTom real-time traffic tile layer ───────────────────────────
   useEffect(() => {
@@ -298,9 +316,10 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 
       {!ready && (
         <Box sx={{
-          position: "absolute", inset: 0,
+          position: "absolute", inset: 0, zIndex: 1000,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          gap: 1.5, bgcolor: C.navy,
+          gap: 1.5, bgcolor: isDark ? C.navy : "#f8fafc",
+          transition: "background-color 0.4s ease",
         }}>
           <CircularProgress size={22} thickness={4} sx={{ color: C.cyan }} />
           <Typography sx={{ fontSize: "0.68rem", color: C.textMuted, fontFamily: fonts.body }}>
@@ -311,11 +330,15 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 
       {label && ready && (
         <Box sx={{
-          position: "absolute", top: 14, left: 14, zIndex: 5,
-          bgcolor: "rgba(10,15,30,0.88)", backdropFilter: "blur(12px)",
+          position: "absolute", top: 14, left: 14, zIndex: 1000,
+          bgcolor: isDark ? "rgba(10,15,30,0.88)" : "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(12px)",
           border: `1px solid ${labelColor}30`, borderRadius: "10px",
           px: 1.5, py: 0.6, display: "flex", alignItems: "center", gap: 0.8,
-          boxShadow: `0 4px 20px rgba(0,0,0,0.3), 0 0 12px ${labelColor}15`,
+          boxShadow: isDark
+            ? `0 4px 20px rgba(0,0,0,0.3), 0 0 12px ${labelColor}15`
+            : `0 4px 20px rgba(0,0,0,0.08), 0 0 12px ${labelColor}10`,
+          transition: "background-color 0.4s ease, box-shadow 0.4s ease",
         }}>
           <Box sx={{
             width: 7, height: 7, borderRadius: "50%", bgcolor: labelColor,
@@ -334,12 +357,14 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 
       {badge && ready && (
         <Box sx={{
-          position: "absolute", top: 14, right: 14, zIndex: 5,
-          bgcolor: "rgba(10,15,30,0.78)", backdropFilter: "blur(10px)",
-          border: `1px solid ${C.navyBorder}`, borderRadius: "8px",
+          position: "absolute", top: 14, right: 14, zIndex: 1000,
+          bgcolor: isDark ? "rgba(10,15,30,0.78)" : "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(10px)",
+          border: `1px solid ${isDark ? C.navyBorder : "#cbd5e1"}`, borderRadius: "8px",
           px: 1.2, py: 0.4,
+          transition: "background-color 0.4s ease, border-color 0.4s ease",
         }}>
-          <Typography sx={{ fontSize: "0.6rem", color: C.textMuted, fontFamily: fonts.body, letterSpacing: "0.02em" }}>
+          <Typography sx={{ fontSize: "0.6rem", color: isDark ? C.textMuted : "#475569", fontFamily: fonts.body, letterSpacing: "0.02em" }}>
             {badge}
           </Typography>
         </Box>
@@ -349,7 +374,7 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
 });
 
 // ── Traffic Legend ─────────────────────────────────────────────────────────────
-function TrafficLegend() {
+function TrafficLegend({ isDark = true }) {
   const items = [
     { color: "#22c55e", label: "> 60 km/h" },
     { color: "#f59e0b", label: "30–60 km/h" },
@@ -358,19 +383,21 @@ function TrafficLegend() {
   ];
   return (
     <Box sx={{
-      position: "absolute", bottom: 24, left: 14, zIndex: 10,
-      bgcolor: "rgba(10,15,30,0.92)", backdropFilter: "blur(12px)",
-      border: `1px solid ${C.navyBorder}`, borderRadius: "10px",
+      position: "absolute", bottom: 24, left: 14, zIndex: 1000,
+      bgcolor: isDark ? "rgba(10,15,30,0.92)" : "rgba(255,255,255,0.92)",
+      backdropFilter: "blur(12px)",
+      border: `1px solid ${isDark ? C.navyBorder : "#cbd5e1"}`, borderRadius: "10px",
       px: 1.5, py: 1.2,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+      boxShadow: isDark ? "0 4px 20px rgba(0,0,0,0.4)" : "0 4px 20px rgba(0,0,0,0.1)",
+      transition: "background-color 0.4s ease, border-color 0.4s ease",
     }}>
-      <Typography sx={{ fontSize: "0.6rem", color: C.textMuted, fontFamily: fonts.body, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", mb: 0.6 }}>
+      <Typography sx={{ fontSize: "0.6rem", color: isDark ? C.textMuted : "#475569", fontFamily: fonts.body, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", mb: 0.6 }}>
         Traffic Speed
       </Typography>
       {items.map(({ color, label }) => (
         <Box key={color} sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 0.3 }}>
           <Box sx={{ width: 18, height: 4, borderRadius: 2, bgcolor: color }} />
-          <Typography sx={{ fontSize: "0.6rem", color: C.textPrimary, fontFamily: fonts.body }}>{label}</Typography>
+          <Typography sx={{ fontSize: "0.6rem", color: isDark ? C.textPrimary : "#0f172a", fontFamily: fonts.body }}>{label}</Typography>
         </Box>
       ))}
     </Box>
@@ -378,7 +405,7 @@ function TrafficLegend() {
 }
 
 // ── Main MapView ──────────────────────────────────────────────────────────────
-const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = false, onChoosePrimary, onChooseAlternate }, ref) {
+const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = false, isDark = true, onChoosePrimary, onChooseAlternate, isMobile = false }, ref) {
   const primaryRef   = useRef(null);
   const alternateRef = useRef(null);
   const prevSplitRef = useRef(false);
@@ -399,6 +426,7 @@ const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = 
     drawPrimary(d)        { primaryRef.current?.draw({ ...d, color: C.cyan }); },
     drawPrimaryTraffic(d) { primaryRef.current?.drawTraffic(d); },
     drawAlternate(d)      { alternateRef.current?.draw({ ...d, color: "#a78bfa" }); },
+    drawAlternateTraffic(d) { alternateRef.current?.drawTraffic(d); },
     clearPrimary()        { primaryRef.current?.clear(); },
     clearAlternate()      { alternateRef.current?.clear(); },
     clearAll()            { primaryRef.current?.clear(); alternateRef.current?.clear(); },
@@ -406,29 +434,32 @@ const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = 
   }));
 
   return (
-    <Box sx={{ flex: 1, display: "flex", height: "100vh", overflow: "hidden", position: "relative" }}>
+    <Box sx={{ flex: 1, display: "flex", flexDirection: isMobile && showSplit ? "column" : "row", height: "100vh", overflow: "hidden", position: "relative" }}>
 
       {/* Primary map panel */}
       <Box sx={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
         <Box sx={{ flex: 1, position: "relative" }}>
-          <SingleMap ref={primaryRef} label={showTraffic ? "Live Traffic" : "Optimal Route"} labelColor={showTraffic ? "#22c55e" : C.cyan} badge="OpenStreetMap · OSRM" showTraffic={showTraffic} />
+          <SingleMap ref={primaryRef} label={showTraffic ? "Live Traffic" : "Optimal Route"} labelColor={showTraffic ? "#22c55e" : C.cyan} badge="OpenStreetMap · OSRM" showTraffic={showTraffic} isDark={isDark} />
         </Box>
 
         {/* Choose primary route button */}
         {showSplit && onChoosePrimary && (
           <Button
             onClick={onChoosePrimary}
-            startIcon={<CheckCircleOutlineRounded sx={{ fontSize: 16 }} />}
+            startIcon={<CheckCircleOutlineRounded sx={{ fontSize: { xs: 14, sm: 16 } }} />}
             sx={{
-              position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+              position: "absolute", bottom: { xs: 10, sm: 16 }, left: "50%", transform: "translateX(-50%)",
               zIndex: 1000,
-              bgcolor: "rgba(10,15,30,0.92)", backdropFilter: "blur(12px)",
+              bgcolor: isDark ? "rgba(10,15,30,0.92)" : "rgba(255,255,255,0.92)",
+              backdropFilter: "blur(12px)",
               border: `1.5px solid ${C.cyan}50`,
               color: C.cyan, fontFamily: fonts.body, fontWeight: 600,
-              fontSize: "0.72rem", textTransform: "none",
-              borderRadius: "10px", px: 2.5, py: 0.8,
-              boxShadow: `0 4px 20px rgba(0,0,0,0.4), 0 0 12px ${C.cyan}15`,
-              transition: "all 0.2s ease",
+              fontSize: { xs: "0.65rem", sm: "0.72rem" }, textTransform: "none",
+              borderRadius: "10px", px: { xs: 1.5, sm: 2.5 }, py: { xs: 0.6, sm: 0.8 },
+              boxShadow: isDark
+                ? `0 4px 20px rgba(0,0,0,0.4), 0 0 12px ${C.cyan}15`
+                : `0 4px 20px rgba(0,0,0,0.1), 0 0 12px ${C.cyan}10`,
+              transition: "all 0.3s ease",
               "&:hover": {
                 bgcolor: `${C.cyan}20`,
                 borderColor: C.cyan,
@@ -443,22 +474,26 @@ const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = 
       </Box>
 
       {/* Traffic legend — shown when traffic mode active */}
-      {showTraffic && <TrafficLegend />}
+      {showTraffic && <TrafficLegend isDark={isDark} />}
 
       {/* VS divider — only visible in split mode */}
       {showSplit && (
         <Box sx={{
-          width: 3, flexShrink: 0,
-          background: `linear-gradient(180deg, ${C.cyan}40, ${C.navyBorder}, #a78bfa40)`,
-          position: "relative", zIndex: 5,
+          ...(isMobile
+            ? { height: 3, width: "100%", flexShrink: 0 }
+            : { width: 3, flexShrink: 0 }),
+          background: `linear-gradient(${isMobile ? "90deg" : "180deg"}, ${C.cyan}40, ${isDark ? C.navyBorder : "#cbd5e1"}, #a78bfa40)`,
+          position: "relative", zIndex: 1000,
           "&::after": {
             content: '"VS"', position: "absolute",
             top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-            bgcolor: C.navyCard, border: `1px solid ${C.navyBorder}`,
-            color: C.textMuted, fontSize: "0.58rem", fontWeight: 700,
+            bgcolor: isDark ? C.navyCard : "#fff",
+            border: `1px solid ${isDark ? C.navyBorder : "#cbd5e1"}`,
+            color: isDark ? C.textMuted : "#475569",
+            fontSize: "0.58rem", fontWeight: 700,
             fontFamily: fonts.display, letterSpacing: "0.12em",
             px: 0.8, py: 0.4, borderRadius: "6px", whiteSpace: "nowrap",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+            boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.4)" : "0 2px 12px rgba(0,0,0,0.1)",
           },
         }} />
       )}
@@ -475,7 +510,7 @@ const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = 
       }}>
         <Box sx={{ flex: 1, position: "relative" }}>
           <Box sx={{ position: "absolute", inset: 0 }}>
-            <SingleMap ref={alternateRef} label="Alternate Route" labelColor="#a78bfa" badge="via custom road" showTraffic={showTraffic} />
+            <SingleMap ref={alternateRef} label="Alternate Route" labelColor="#a78bfa" badge="via custom road" showTraffic={showTraffic} isDark={isDark} />
           </Box>
         </Box>
 
@@ -483,17 +518,20 @@ const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = 
         {showSplit && onChooseAlternate && (
           <Button
             onClick={onChooseAlternate}
-            startIcon={<CheckCircleOutlineRounded sx={{ fontSize: 16 }} />}
+            startIcon={<CheckCircleOutlineRounded sx={{ fontSize: { xs: 14, sm: 16 } }} />}
             sx={{
-              position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)",
+              position: "absolute", bottom: { xs: "14vh", sm: 16 }, left: "50%", transform: "translateX(-50%)",
               zIndex: 1000,
-              bgcolor: "rgba(10,15,30,0.92)", backdropFilter: "blur(12px)",
+              bgcolor: isDark ? "rgba(10,15,30,0.92)" : "rgba(255,255,255,0.92)",
+              backdropFilter: "blur(12px)",
               border: "1.5px solid rgba(167,139,250,0.35)",
               color: "#a78bfa", fontFamily: fonts.body, fontWeight: 600,
-              fontSize: "0.72rem", textTransform: "none",
-              borderRadius: "10px", px: 2.5, py: 0.8,
-              boxShadow: "0 4px 20px rgba(0,0,0,0.4), 0 0 12px rgba(167,139,250,0.15)",
-              transition: "all 0.2s ease",
+              fontSize: { xs: "0.65rem", sm: "0.72rem" }, textTransform: "none",
+              borderRadius: "10px", px: { xs: 1.5, sm: 2.5 }, py: { xs: 0.6, sm: 0.8 },
+              boxShadow: isDark
+                ? "0 4px 20px rgba(0,0,0,0.4), 0 0 12px rgba(167,139,250,0.15)"
+                : "0 4px 20px rgba(0,0,0,0.1), 0 0 12px rgba(167,139,250,0.1)",
+              transition: "all 0.3s ease",
               "&:hover": {
                 bgcolor: "rgba(167,139,250,0.15)",
                 borderColor: "#a78bfa",
@@ -509,17 +547,18 @@ const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = 
 
       {loading && (
         <Box sx={{
-          position: "absolute", inset: 0, zIndex: 20,
+          position: "absolute", inset: 0, zIndex: 1100,
           display: "flex", alignItems: "center", justifyContent: "center",
-          bgcolor: "rgba(10,15,30,0.55)", backdropFilter: "blur(6px)",
+          bgcolor: isDark ? "rgba(10,15,30,0.55)" : "rgba(255,255,255,0.55)",
+          backdropFilter: "blur(6px)",
         }}>
           <Box sx={{
             textAlign: "center",
-            bgcolor: "rgba(17,24,39,0.9)",
-            border: `1px solid ${C.navyBorder}`,
+            bgcolor: isDark ? "rgba(17,24,39,0.9)" : "rgba(255,255,255,0.95)",
+            border: `1px solid ${isDark ? C.navyBorder : "#cbd5e1"}`,
             borderRadius: "16px",
             px: 4, py: 3,
-            boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+            boxShadow: isDark ? "0 8px 40px rgba(0,0,0,0.5)" : "0 8px 40px rgba(0,0,0,0.12)",
           }}>
             <Box sx={{
               width: 48, height: 48, borderRadius: "14px",
@@ -530,10 +569,10 @@ const MapView = forwardRef(function MapView({ showSplit, loading, showTraffic = 
             }}>
               <CircularProgress size={20} thickness={4} sx={{ color: C.cyan }} />
             </Box>
-            <Typography sx={{ color: C.textPrimary, fontWeight: 600, fontSize: "0.85rem", fontFamily: fonts.body }}>
+            <Typography sx={{ color: isDark ? C.textPrimary : "#0f172a", fontWeight: 600, fontSize: "0.85rem", fontFamily: fonts.body }}>
               Calculating Route
             </Typography>
-            <Typography sx={{ color: C.textMuted, fontSize: "0.7rem", fontFamily: fonts.body, mt: 0.4 }}>
+            <Typography sx={{ color: isDark ? C.textMuted : "#475569", fontSize: "0.7rem", fontFamily: fonts.body, mt: 0.4 }}>
               Finding the optimal path…
             </Typography>
           </Box>

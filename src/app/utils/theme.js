@@ -20,6 +20,31 @@ export const C = {
   textMuted:   "#64748b",
 };
 
+// Light mode color tokens
+export const CLight = {
+  navy:        "#f8fafc",
+  navyLight:   "#ffffff",
+  navyCard:    "#f1f5f9",
+  navyCardHov: "#e2e8f0",
+  navyBorder:  "#cbd5e1",
+  cyan:        "#0891b2",
+  cyanDark:    "#0e7490",
+  cyanGlow:    "rgba(8,145,178,0.12)",
+  blue:        "#2563eb",
+  blueDark:    "#1d4ed8",
+  blueGlow:    "rgba(37,99,235,0.2)",
+  rose:        "#e11d48",
+  green:       "#16a34a",
+  textPrimary: "#0f172a",
+  textSub:     "#475569",
+  textMuted:   "#64748b",
+};
+
+// Helper: get the right palette based on isDark
+export function getColors(isDark) {
+  return isDark ? C : CLight;
+}
+
 export const fonts = {
   display: "'Space Grotesk', sans-serif",
   body:    "'DM Sans', sans-serif",

@@ -8,7 +8,7 @@ import {
 } from "@mui/icons-material";
 import { CircularProgress } from "@mui/material";
 import Link from "next/link";
-import { C, fonts } from "../app/utils/theme";
+import { C, fonts, getColors } from "../app/utils/theme";
 import PlaceAutocomplete from "./PlaceAutocomplete";
 import RouteInfoCard from "./RouteInfoCard";
 import AlternateRouteInput from "./AlternateRouteInput";
@@ -34,49 +34,53 @@ export default function Sidebar({
   primaryRoute,
   alternateRoute,
   showSplit,
+  isDark = true,
 }) {
+  const T = getColors(isDark);
   return (
     <Box sx={{
       width: 380, minWidth: 380,
       height: "100vh",
       display: "flex", flexDirection: "column",
-      bgcolor: C.navyLight,
-      borderRight: `1px solid ${C.navyBorder}`,
+      bgcolor: T.navyLight,
+      borderRight: `1px solid ${T.navyBorder}`,
       zIndex: 10,
       overflow: "hidden",
+      transition: "background-color 0.4s ease, border-color 0.4s ease",
     }}>
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <Box sx={{
         px: 2.5, py: 2,
-        borderBottom: `1px solid ${C.navyBorder}`,
+        borderBottom: `1px solid ${T.navyBorder}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: `linear-gradient(180deg, ${C.navyLight} 0%, ${C.navyLight} 100%)`,
+        background: `linear-gradient(180deg, ${T.navyLight} 0%, ${T.navyLight} 100%)`,
         flexShrink: 0,
+        transition: "background 0.4s ease, border-color 0.4s ease",
       }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box sx={{
             width: 36, height: 36, borderRadius: "10px",
-            background: `linear-gradient(135deg, ${C.cyan}, ${C.blue})`,
+            background: `linear-gradient(135deg, ${T.cyan}, ${T.blue || C.blue})`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: `0 0 16px ${C.cyanGlow}`,
+            boxShadow: `0 0 16px ${T.cyanGlow}`,
           }}>
             <Navigation sx={{ fontSize: 18, color: "#fff" }} />
           </Box>
           <Box>
-            <Typography sx={{ fontFamily: fonts.display, fontWeight: 700, fontSize: "1rem", color: C.textPrimary, lineHeight: 1 }}>
+            <Typography sx={{ fontFamily: fonts.display, fontWeight: 700, fontSize: "1rem", color: T.textPrimary, lineHeight: 1, transition: "color 0.4s ease" }}>
               SmartRoute
             </Typography>
-            <Typography sx={{ fontSize: "0.68rem", color: C.textMuted, mt: 0.2 }}>
+            <Typography sx={{ fontSize: "0.68rem", color: T.textMuted, mt: 0.2, transition: "color 0.4s ease" }}>
               Vision Navigation System
             </Typography>
           </Box>
         </Box>
         <Link href="/" passHref>
           <IconButton size="small" sx={{
-            color: C.textMuted, border: `1px solid ${C.navyBorder}`,
+            color: T.textMuted, border: `1px solid ${T.navyBorder}`,
             borderRadius: "8px", width: 32, height: 32,
-            "&:hover": { borderColor: C.cyan, color: C.cyan, bgcolor: C.cyanGlow },
+            "&:hover": { borderColor: T.cyan, color: T.cyan, bgcolor: T.cyanGlow },
           }}>
             <ArrowBack sx={{ fontSize: 16 }} />
           </IconButton>
@@ -89,17 +93,17 @@ export default function Sidebar({
         overflowY: "auto", overflowX: "hidden",
         "&::-webkit-scrollbar": { width: 4 },
         "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
-        "&::-webkit-scrollbar-thumb": { bgcolor: C.navyBorder, borderRadius: 2 },
+        "&::-webkit-scrollbar-thumb": { bgcolor: T.navyBorder, borderRadius: 2 },
       }}>
 
       {/* ── Route Planner ───────────────────────────────────────────────── */}
       <Box sx={{ px: 2.5, pt: 2.5, pb: 1.5 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-          <RouteOutlined sx={{ fontSize: 14, color: C.cyan }} />
+          <RouteOutlined sx={{ fontSize: 14, color: T.cyan }} />
           <Typography sx={{
             fontSize: "0.68rem", fontWeight: 600,
             letterSpacing: "0.12em", textTransform: "uppercase",
-            color: C.textMuted, fontFamily: fonts.body,
+            color: T.textMuted, fontFamily: fonts.body,
           }}>
             Route Planner
           </Typography>
@@ -112,7 +116,7 @@ export default function Sidebar({
           onChange={(v) => { setSource(v); }}
           onSelect={(s) => setSource(s.shortName)}
           onEnterPress={onGetRoute}
-          dotColor={C.cyan}
+          dotColor={T.cyan}
           placeholder="e.g. Connaught Place, Delhi"
           disabled={loading}
         />
@@ -121,17 +125,17 @@ export default function Sidebar({
         <Box sx={{ display: "flex", alignItems: "center", my: 1.2, pl: 0.5 }}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.3, mr: 1 }}>
             {[0,1,2].map(i => (
-              <Box key={i} sx={{ width: 1.5, height: 4, borderRadius: 1, bgcolor: C.navyBorder }} />
+              <Box key={i} sx={{ width: 1.5, height: 4, borderRadius: 1, bgcolor: T.navyBorder }} />
             ))}
           </Box>
           <Box sx={{ flex: 1 }} />
           <IconButton
             onClick={onSwap} size="small" disabled={loading}
             sx={{
-              bgcolor: C.navyCard, border: `1px solid ${C.navyBorder}`,
+              bgcolor: T.navyCard, border: `1px solid ${T.navyBorder}`,
               borderRadius: "8px", width: 28, height: 28,
-              color: C.textMuted,
-              "&:hover": { borderColor: C.cyan, bgcolor: C.cyanGlow, color: C.cyan },
+              color: T.textMuted,
+              "&:hover": { borderColor: T.cyan, bgcolor: T.cyanGlow, color: T.cyan },
               transition: "all 0.2s",
             }}
           >
@@ -146,7 +150,7 @@ export default function Sidebar({
           onChange={(v) => { setDestination(v); }}
           onSelect={(s) => setDestination(s.shortName)}
           onEnterPress={onGetRoute}
-          dotColor={C.rose}
+          dotColor={T.rose}
           placeholder="e.g. India Gate, Delhi"
           disabled={loading}
         />
@@ -180,8 +184,8 @@ export default function Sidebar({
               py: 1.2, borderRadius: "10px",
               textTransform: "none", fontFamily: fonts.body,
               fontWeight: 600, fontSize: "0.85rem",
-              background: `linear-gradient(135deg, ${C.blue}, ${C.blueDark})`,
-              boxShadow: `0 4px 20px ${C.blueGlow}`,
+              background: `linear-gradient(135deg, ${T.blue || C.blue}, ${T.blueDark || C.blueDark})`,
+              boxShadow: `0 4px 20px ${T.blueGlow || C.blueGlow}`,
               "&:hover": {
                 background: `linear-gradient(135deg, #60a5fa, ${C.blue})`,
                 boxShadow: "0 6px 28px rgba(59,130,246,0.45)",
@@ -200,10 +204,10 @@ export default function Sidebar({
                 py: 1.2, px: 2, borderRadius: "10px",
                 textTransform: "none", fontFamily: fonts.body,
                 fontWeight: 500, fontSize: "0.82rem",
-                borderColor: C.navyBorder, color: C.textMuted,
-                border: `1px solid ${C.navyBorder}`,
+                borderColor: C.navyBorder, color: T.textMuted,
+                border: `1px solid ${T.navyBorder}`,
                 minWidth: "auto",
-                "&:hover": { borderColor: C.rose, color: C.rose, bgcolor: "rgba(244,63,94,0.06)" },
+                "&:hover": { borderColor: T.rose, color: T.rose, bgcolor: "rgba(244,63,94,0.06)" },
               }}
             >
               Clear
@@ -213,7 +217,7 @@ export default function Sidebar({
       </Box>
 
       {/* Divider only when route exists */}
-      {primaryRoute && <Divider sx={{ borderColor: C.navyBorder, mx: 2.5 }} />}
+      {primaryRoute && <Divider sx={{ borderColor: T.navyBorder, mx: 2.5 }} />}
 
       {/* ── Results section — only rendered when route exists ─────────── */}
       {primaryRoute && (
@@ -221,11 +225,11 @@ export default function Sidebar({
           <>
             {/* Primary route card */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: C.cyan, boxShadow: `0 0 6px ${C.cyan}` }} />
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: T.cyan, boxShadow: `0 0 6px ${T.cyan}` }} />
               <Typography sx={{
                 fontSize: "0.68rem", fontWeight: 600,
                 letterSpacing: "0.12em", textTransform: "uppercase",
-                color: C.textMuted, fontFamily: fonts.body,
+                color: T.textMuted, fontFamily: fonts.body,
               }}>
                 Optimal Route
               </Typography>
@@ -241,7 +245,7 @@ export default function Sidebar({
                   <Typography sx={{
                     fontSize: "0.68rem", fontWeight: 600,
                     letterSpacing: "0.12em", textTransform: "uppercase",
-                    color: C.textMuted, fontFamily: fonts.body,
+                    color: T.textMuted, fontFamily: fonts.body,
                   }}>
                     Alternate Route
                   </Typography>
@@ -254,7 +258,7 @@ export default function Sidebar({
               </>
             )}
 
-            <Divider sx={{ borderColor: C.navyBorder, my: 2 }} />
+            <Divider sx={{ borderColor: T.navyBorder, my: 2 }} />
 
             {/* Step 2 alternate input */}
             <AlternateRouteInput
@@ -272,7 +276,7 @@ export default function Sidebar({
       {!primaryRoute && !loading && (
         <Box sx={{ px: 2.5, pt: 2, pb: 2 }}>
           <Box sx={{
-            border: `1px dashed ${C.navyBorder}`,
+            border: `1px dashed ${T.navyBorder}`,
             borderRadius: "12px",
             p: 3, textAlign: "center",
           }}>
@@ -283,19 +287,19 @@ export default function Sidebar({
               display: "flex", alignItems: "center", justifyContent: "center",
               mx: "auto", mb: 1.5,
             }}>
-              <RouteOutlined sx={{ fontSize: 22, color: C.cyan }} />
+              <RouteOutlined sx={{ fontSize: 22, color: T.cyan }} />
             </Box>
-            <Typography sx={{ fontSize: "0.82rem", color: C.textSub, fontWeight: 500, mb: 0.5 }}>
+            <Typography sx={{ fontSize: "0.82rem", color: T.textSub, fontWeight: 500, mb: 0.5 }}>
               Ready to Navigate
             </Typography>
-            <Typography sx={{ fontSize: "0.72rem", color: C.textMuted, lineHeight: 1.6 }}>
+            <Typography sx={{ fontSize: "0.72rem", color: T.textMuted, lineHeight: 1.6 }}>
               Enter source and destination to plot your optimal route
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 0.8, mt: 1.5 }}>
               {["Free Routing", "No API Key", "Autocomplete", "Split Compare"].map((f) => (
                 <Chip key={f} label={f} size="small" sx={{
-                  bgcolor: C.navyCard, border: `1px solid ${C.navyBorder}`,
-                  color: C.textMuted, fontSize: "0.62rem", height: 20,
+                  bgcolor: T.navyCard, border: `1px solid ${T.navyBorder}`,
+                  color: T.textMuted, fontSize: "0.62rem", height: 20,
                   fontFamily: fonts.body,
                 }} />
               ))}
@@ -309,18 +313,19 @@ export default function Sidebar({
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <Box sx={{
         px: 2.5, py: 1.5,
-        borderTop: `1px solid ${C.navyBorder}`,
+        borderTop: `1px solid ${T.navyBorder}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexShrink: 0,
+        transition: "border-color 0.4s ease",
         background: `linear-gradient(0deg, rgba(34,211,238,0.02) 0%, transparent 100%)`,
       }}>
-        <Typography sx={{ fontSize: "0.62rem", color: C.textMuted }}>
+        <Typography sx={{ fontSize: "0.62rem", color: T.textMuted }}>
           K.R. Mangalam University · Final Year Project
         </Typography>
         <Chip label="Step 4 / 5" size="small" sx={{
           bgcolor: "rgba(34,211,238,0.07)",
           border: "1px solid rgba(34,211,238,0.15)",
-          color: C.cyan, fontSize: "0.6rem", height: 20,
+          color: T.cyan, fontSize: "0.6rem", height: 20,
           fontFamily: fonts.body, fontWeight: 600,
         }} />
       </Box>

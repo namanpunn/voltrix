@@ -23,6 +23,7 @@ body {
   font-family: var(--font-dm-sans), 'DM Sans', Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -45,4 +46,14 @@ a {
 /* Ensure no white flashes anywhere */
 html, body, #__next {
   background: #0a0f1e;
+  transition: background-color 0.4s ease;
+}
+
+/* Smooth Leaflet tile transitions for theme switching */
+.leaflet-tile-pane {
+  transition: opacity 0.4s ease;
+}
+
+.leaflet-container {
+  transition: background-color 0.4s ease;
 }

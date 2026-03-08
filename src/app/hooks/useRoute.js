@@ -10,7 +10,7 @@ const OSRM      = "https://router.project-osrm.org/route/v1/driving";
 export async function geocodePlace(query) {
   const params = new URLSearchParams({
     format: "json", q: query, limit: "1",
-    countrycodes: "in", viewbox: "68.1,6.5,97.4,35.7", bounded: "0",
+    countrycodes: "in", viewbox: "76.8,28.2,77.6,29.0", bounded: "1",
   });
   const res  = await fetch(`${NOMINATIM}/search?${params}`, { headers: { "Accept-Language": "en" } });
   const data = await res.json();
@@ -18,19 +18,30 @@ export async function geocodePlace(query) {
   return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
 }
 
-// ── Fetch autocomplete suggestions — India biased ────────────────────────────
-export async function fetchSuggestions(query) {
+// ── Haversine distance (km) between two [lat,lng] points ─────────────────────
+function haversineKm(a, b) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b[0] - a[0]);
+  const dLon = toRad(b[1] - a[1]);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+// ── Fetch autocomplete suggestions — sorted by distance from user ────────────
+export async function fetchSuggestions(query, userCoords = null) {
   if (!query || query.trim().length < 3) return [];
 
-  // India bounding box: SW(6.5, 68.1) → NE(35.7, 97.4)
   const params = new URLSearchParams({
     format:       "json",
     q:            query,
     limit:        "7",
     addressdetails:"1",
     countrycodes: "in",                          // restrict to India
-    viewbox:      "68.1,6.5,97.4,35.7",         // India bounding box (lon_min,lat_min,lon_max,lat_max)
-    bounded:      "0",                           // 0 = prefer viewbox but don't hard-restrict
+    viewbox:      "76.8,28.2,77.6,29.0",         // Delhi NCR bounding box
+    bounded:      "1",                           // hard-restrict to viewbox
     "accept-language": "en",
   });
 
@@ -39,22 +50,30 @@ export async function fetchSuggestions(query) {
   });
   const data = await res.json();
 
-  return data.map((item) => {
-    // Build a short readable name: "Place Name, City" instead of full address
+  const results = data.map((item) => {
     const parts     = item.display_name.split(",").map((s) => s.trim());
     const shortName = parts[0];
     const city      = parts.find((p, i) => i > 0 && i < 4 && p.length > 1) || "";
     const subtitle  = city ? `${shortName}, ${city}` : shortName;
+    const coords    = [parseFloat(item.lat), parseFloat(item.lon)];
 
     return {
       label:     item.display_name,
       shortName: subtitle,
-      plainName: shortName,                      // used when selecting
-      coords:    [parseFloat(item.lat), parseFloat(item.lon)],
+      plainName: shortName,
+      coords,
       type:      item.type || item.class,
       placeId:   item.place_id,
+      dist:      userCoords ? haversineKm(userCoords, coords) : null,
     };
   });
+
+  // Sort by distance from user (closest first) when location is available
+  if (userCoords) {
+    results.sort((a, b) => a.dist - b.dist);
+  }
+
+  return results;
 }
 
 // ── Get driving route between two [lat,lng] pairs ─────────────────────────────
