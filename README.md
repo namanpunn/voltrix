@@ -15,13 +15,13 @@
 <br/>
 
 <!-- Typing SVG -->
-<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Space+Grotesk&weight=700&size=22&duration=3500&pause=800&color=22D3EE&center=true&vCenter=true&multiline=true&repeat=true&random=false&width=620&height=80&lines=AI-Powered+Route+Comparison+%F0%9F%9A%80;Real-Time+Rerouting+%26+Traffic+Intelligence+%F0%9F%9B%A3%EF%B8%8F;Open+Source+%7C+No+API+Keys+Required+%E2%9C%A8" alt="Typing SVG" /></a>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Space+Grotesk&weight=600&size=18&duration=3500&pause=800&color=22D3EE&center=true&vCenter=true&repeat=true&random=false&width=480&height=30&lines=Smart+Route+Comparison+%F0%9F%9A%80;Live+Rerouting+%26+Traffic+Intelligence+%F0%9F%9B%A3%EF%B8%8F;Powered+by+Open+Source+APIs+%E2%9C%A8" alt="Typing SVG" /></a>
 
 <br/><br/>
 
 > **SmartRoute** is an intelligent navigation system built as a Final Year Project at **K.R. Mangalam University**.
 > It delivers **real-time route planning**, **smart alternate route comparison**, **live rerouting**,
-> and **traffic-aware navigation** — all powered by open-source APIs with **zero API keys**.
+> and **traffic-aware navigation** — all powered by open-source APIs.
 
 <br/>
 
@@ -190,15 +190,7 @@ npm install
 npm run dev
 ```
 
-**That's it.** No API keys needed. Open [http://localhost:3000](http://localhost:3000) and start navigating.
-
-### Optional: Traffic Tiles
-
-To enable real-time TomTom traffic overlay, create a `.env.local`:
-
-```env
-NEXT_PUBLIC_TOMTOM_API_KEY=your_tomtom_key_here
-```
+**That's it.** Open [http://localhost:3000](http://localhost:3000) and start navigating.
 
 ---
 
@@ -331,36 +323,3 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 **⭐ Star this repo if you found it useful!**
 
 </div>
-
-Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-### Other Platforms
-
-Voltrix can be deployed to any platform that supports Next.js:
-- Netlify
-- AWS Amplify
-- Digital Ocean
-- Railway
-- Render
-
-## 📚 Learn More
-
-To learn more about the technologies used:
-
-- [Next.js Documentation](https://nextjs.org/docs) - Learn about Next.js features and API
-- [React Documentation](https://react.dev/) - Learn React fundamentals
-- [Material-UI Documentation](https://mui.com/material-ui/getting-started/) - Explore MUI components
-- [Leaflet Documentation](https://leafletjs.com/reference.html) - Map library API reference
-- [React-Leaflet Documentation](https://react-leaflet.js.org/) - React wrapper for Leaflet
-
-## 📄 License
-
-This project is private and proprietary.
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
-
----
-
-Built with ❤️ using Next.js and React
