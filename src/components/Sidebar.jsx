@@ -1,10 +1,11 @@
 // ─── Sidebar.jsx ─────────────────────────────────────────────────────────────
 "use client";
 
+import { useState, useEffect } from "react";
 import { Box, Typography, IconButton, Button, Chip, Divider } from "@mui/material";
 import {
   Navigation, ArrowBack, SwapVert, Directions,
-  RouteOutlined,
+  RouteOutlined, TrendingFlat,
 } from "@mui/icons-material";
 import { CircularProgress } from "@mui/material";
 import Link from "next/link";
@@ -12,6 +13,125 @@ import { C, fonts, getColors } from "../app/utils/theme";
 import PlaceAutocomplete from "./PlaceAutocomplete";
 import RouteInfoCard from "./RouteInfoCard";
 import AlternateRouteInput from "./AlternateRouteInput";
+import VerdictBanner from "./VerdictBanner";
+
+const EXAMPLE_ROUTES = [
+  { from: "Connaught Place", to: "India Gate" },
+  { from: "IGI Airport T3", to: "Cyber City, Gurugram" },
+  { from: "Hauz Khas", to: "Lajpat Nagar" },
+  { from: "Karol Bagh", to: "Chandni Chowk" },
+];
+
+const FEATURES = [
+  { label: "Smart Routing", color: "#22d3ee" },
+  { label: "Route Compare", color: "#a78bfa" },
+  { label: "Live Rerouting", color: "#4ade80" },
+];
+
+function SidebarPlaceholder({ T }) {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx(i => (i + 1) % EXAMPLE_ROUTES.length);
+        setVisible(true);
+      }, 400);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const route = EXAMPLE_ROUTES[idx];
+
+  return (
+    <Box sx={{ px: 2.5, pt: 2, pb: 2.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+
+      {/* ── Main card ──────────────────────────────────────────────── */}
+      <Box sx={{
+        border: `1px solid ${T.navyBorder}`,
+        borderRadius: "14px",
+        p: 2.5,
+        textAlign: "center",
+        background: `linear-gradient(160deg, rgba(34,211,238,0.04) 0%, rgba(99,102,241,0.04) 100%)`,
+        position: "relative",
+        overflow: "hidden",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0, left: 0, right: 0,
+          height: "1px",
+          background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.4), transparent)",
+        },
+      }}>
+        {/* Icon */}
+        <Box sx={{
+          width: 52, height: 52, borderRadius: "16px",
+          background: "linear-gradient(135deg, rgba(34,211,238,0.15), rgba(99,102,241,0.15))",
+          border: "1px solid rgba(34,211,238,0.2)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          mx: "auto", mb: 1.8,
+          boxShadow: "0 0 24px rgba(34,211,238,0.12)",
+        }}>
+          <RouteOutlined sx={{ fontSize: 24, color: T.cyan }} />
+        </Box>
+
+        <Typography sx={{
+          fontSize: "0.92rem", color: T.textPrimary,
+          fontWeight: 700, mb: 0.5, fontFamily: fonts.display,
+          letterSpacing: "-0.01em",
+        }}>
+          Ready to Navigate
+        </Typography>
+        <Typography sx={{ fontSize: "0.72rem", color: T.textMuted, lineHeight: 1.7, mb: 2 }}>
+          Enter a source and destination above to calculate your optimal route with real-time comparison.
+        </Typography>
+
+        {/* Animated example route */}
+        <Box sx={{
+          bgcolor: "rgba(34,211,238,0.05)",
+          border: "1px solid rgba(34,211,238,0.12)",
+          borderRadius: "10px",
+          px: 1.5, py: 1,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 1,
+          transition: "opacity 0.4s ease",
+          opacity: visible ? 1 : 0,
+          minHeight: 36,
+        }}>
+          <Typography sx={{ fontSize: "0.68rem", color: T.cyan, fontWeight: 600, fontFamily: fonts.body }}>
+            {route.from}
+          </Typography>
+          <TrendingFlat sx={{ fontSize: 14, color: "rgba(34,211,238,0.5)" }} />
+          <Typography sx={{ fontSize: "0.68rem", color: T.textSub, fontWeight: 500, fontFamily: fonts.body }}>
+            {route.to}
+          </Typography>
+        </Box>
+        <Typography sx={{ fontSize: "0.6rem", color: T.textMuted, mt: 0.8, opacity: 0.6 }}>
+          example route
+        </Typography>
+      </Box>
+
+      {/* ── Feature pills ───────────────────────────────────────────── */}
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8 }}>
+        {FEATURES.map(({ label, color }) => (
+          <Box key={label} sx={{
+            display: "flex", alignItems: "center", gap: 0.6,
+            px: 1.2, py: 0.5,
+            borderRadius: "8px",
+            bgcolor: `${color}0d`,
+            border: `1px solid ${color}22`,
+          }}>
+            <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: color, boxShadow: `0 0 6px ${color}` }} />
+            <Typography sx={{ fontSize: "0.62rem", color, fontWeight: 600, fontFamily: fonts.body, letterSpacing: "0.04em" }}>
+              {label}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+}
 
 export default function Sidebar({
   source, setSource,
@@ -21,6 +141,8 @@ export default function Sidebar({
   onClear,
   onCompareAlternate,
   onClearAlternate,
+  onChoosePrimary,
+  onChooseAlternate,
   onStartAR,
   rerouteStatus,
   rerouteHistory,
@@ -255,6 +377,16 @@ export default function Sidebar({
                   compareRoute={primaryRoute}
                   variant="alternate"
                 />
+
+                  {/* ── Verdict + action buttons ─────────────────────────────── */}
+                  <VerdictBanner
+                    primaryRoute={primaryRoute}
+                    alternateRoute={alternateRoute}
+                    onChoosePrimary={onChoosePrimary}
+                    onChooseAlternate={onChooseAlternate}
+                    isDark={isDark}
+                    T={T}
+                  />
               </>
             )}
 
@@ -268,67 +400,15 @@ export default function Sidebar({
               hasAlternate={!!alternateRoute}
             />
           </>
-
       </Box>
       )}
 
-      {/* Empty state */}
       {!primaryRoute && !loading && (
-        <Box sx={{ px: 2.5, pt: 2, pb: 2 }}>
-          <Box sx={{
-            border: `1px dashed ${T.navyBorder}`,
-            borderRadius: "12px",
-            p: 3, textAlign: "center",
-          }}>
-            <Box sx={{
-              width: 48, height: 48, borderRadius: "14px",
-              background: "rgba(34,211,238,0.07)",
-              border: "1px solid rgba(34,211,238,0.12)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              mx: "auto", mb: 1.5,
-            }}>
-              <RouteOutlined sx={{ fontSize: 22, color: T.cyan }} />
-            </Box>
-            <Typography sx={{ fontSize: "0.82rem", color: T.textSub, fontWeight: 500, mb: 0.5 }}>
-              Ready to Navigate
-            </Typography>
-            <Typography sx={{ fontSize: "0.72rem", color: T.textMuted, lineHeight: 1.6 }}>
-              Enter source and destination to plot your optimal route
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 0.8, mt: 1.5 }}>
-              {["Free Routing", "No API Key", "Autocomplete", "Split Compare"].map((f) => (
-                <Chip key={f} label={f} size="small" sx={{
-                  bgcolor: T.navyCard, border: `1px solid ${T.navyBorder}`,
-                  color: T.textMuted, fontSize: "0.62rem", height: 20,
-                  fontFamily: fonts.body,
-                }} />
-              ))}
-            </Box>
-          </Box>
-        </Box>
+        <SidebarPlaceholder T={T} />
       )}
 
       </Box>{/* end scrollable content */}
 
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <Box sx={{
-        px: 2.5, py: 1.5,
-        borderTop: `1px solid ${T.navyBorder}`,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexShrink: 0,
-        transition: "border-color 0.4s ease",
-        background: `linear-gradient(0deg, rgba(34,211,238,0.02) 0%, transparent 100%)`,
-      }}>
-        <Typography sx={{ fontSize: "0.62rem", color: T.textMuted }}>
-          K.R. Mangalam University · Final Year Project
-        </Typography>
-        <Chip label="Step 4 / 5" size="small" sx={{
-          bgcolor: "rgba(34,211,238,0.07)",
-          border: "1px solid rgba(34,211,238,0.15)",
-          color: T.cyan, fontSize: "0.6rem", height: 20,
-          fontFamily: fonts.body, fontWeight: 600,
-        }} />
-      </Box>
     </Box>
   );
 }

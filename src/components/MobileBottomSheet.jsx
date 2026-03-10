@@ -17,6 +17,7 @@ import { C, fonts, getColors } from "../app/utils/theme";
 import PlaceAutocomplete from "./PlaceAutocomplete";
 import RouteInfoCard from "./RouteInfoCard";
 import AlternateRouteInput from "./AlternateRouteInput";
+import VerdictBanner from "./VerdictBanner";
 
 // ── Snap positions (from bottom of screen) ────────────────────────────────────
 const SNAP_FULL = 0.88;  // 88% of viewport height
@@ -31,6 +32,8 @@ export default function MobileBottomSheet({
   onClear,
   onCompareAlternate,
   onClearAlternate,
+  onChoosePrimary,
+  onChooseAlternate,
   loading, error,
   primaryRoute,
   alternateRoute,
@@ -412,6 +415,16 @@ export default function MobileBottomSheet({
                     route={{ ...alternateRoute, fromText: primaryRoute.fromText, toText: primaryRoute.toText }}
                     compareRoute={primaryRoute}
                     variant="alternate"
+                  />
+
+                  {/* ── Verdict + action buttons ─────────────────────────────── */}
+                  <VerdictBanner
+                    primaryRoute={primaryRoute}
+                    alternateRoute={alternateRoute}
+                    onChoosePrimary={onChoosePrimary}
+                    onChooseAlternate={onChooseAlternate}
+                    isDark={isDark}
+                    T={T}
                   />
                 </>
               )}
