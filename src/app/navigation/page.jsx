@@ -238,6 +238,8 @@ export default function NavigationPage() {
           onClear={handleClear}
           onCompareAlternate={handleCompareAlternate}
           onClearAlternate={handleClearAlternate}
+          onChoosePrimary={handleChoosePrimary}
+          onChooseAlternate={handleChooseAlternate}
           onStartAR={() => setShowCamera(true)}
           rerouteStatus={rerouteStatus}
           rerouteHistory={rerouteHistory}
@@ -338,6 +340,8 @@ export default function NavigationPage() {
           onClear={handleClear}
           onCompareAlternate={handleCompareAlternate}
           onClearAlternate={handleClearAlternate}
+          onChoosePrimary={handleChoosePrimary}
+          onChooseAlternate={handleChooseAlternate}
           loading={loading}
           error={error}
           primaryRoute={primaryRoute}
