@@ -1,19 +1,23 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 
 const ThemeContext = createContext({ isDark: true, toggleTheme: () => {} });
 
-export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(true);
+function getInitialThemeValue() {
+  if (typeof window === "undefined") {
+    return true;
+  }
 
-  // Hydrate from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("smartroute-theme");
-      if (stored === "light") setIsDark(false);
-    } catch (_) {}
-  }, []);
+  try {
+    return localStorage.getItem("smartroute-theme") !== "light";
+  } catch {
+    return true;
+  }
+}
+
+export function ThemeProvider({ children }) {
+  const [isDark, setIsDark] = useState(getInitialThemeValue);
 
   const toggleTheme = useCallback(() => {
     setIsDark(prev => {

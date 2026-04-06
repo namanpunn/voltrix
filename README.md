@@ -82,6 +82,12 @@ Desktop gets a sleek **sidebar**. Mobile gets a **draggable bottom sheet** with 
 </tr>
 </table>
 
+### 🧠 Speed Intelligence Monitor
+Navigation screen now includes a floating **Speed Monitor** that shows:
+- **Current speed** from live GPS (with simulation fallback)
+- **Current road max speed** from TomTom road data
+- **Soft overspeed alert** when speed exceeds the road limit threshold
+
 ---
 
 ## 🏗️ Architecture
@@ -108,6 +114,11 @@ Desktop gets a sleek **sidebar**. Mobile gets a **draggable bottom sheet** with 
 │  │  Nominatim   │  │   OSRM    │  │  CartoDB Tiles   │  │
 │  │  (Geocoding) │  │ (Routing) │  │  (Map Basemap)   │  │
 │  └──────────────┘  └───────────┘  └──────────────────┘  │
+│                  ┌──────────────────┐                    │
+│                  │      TomTom      │                    │
+│                  │ (Traffic + speed │                    │
+│                  │  limit lookup)   │                    │
+│                  └──────────────────┘                    │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -163,6 +174,7 @@ src/
 | **Geocoding** | ![OSM](https://img.shields.io/badge/Nominatim-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | Place search & autocomplete |
 | **Routing** | ![OSRM](https://img.shields.io/badge/OSRM-2C3E50?style=flat-square) | Driving directions + traffic |
 | **Tiles** | ![CartoDB](https://img.shields.io/badge/CartoDB-F05A28?style=flat-square) | Dark & light basemaps |
+| **Speed Limits** | ![TomTom](https://img.shields.io/badge/TomTom-FF0000?style=flat-square) | Current road max-speed lookup |
 | **Fonts** | ![Google Fonts](https://img.shields.io/badge/Google_Fonts-4285F4?style=flat-square&logo=google&logoColor=white) | Space Grotesk + DM Sans |
 
 </div>
@@ -191,6 +203,27 @@ npm run dev
 ```
 
 **That's it.** Open [http://localhost:3000](http://localhost:3000) and start navigating.
+
+### Optional: Enable Road Speed-Limit Lookup (TomTom)
+
+Add a key in `.env.local` to enable real road max-speed lookup in the Speed Monitor:
+
+```bash
+TOMTOM_API_KEY=your_tomtom_key_here
+```
+
+If no key is set, the monitor still shows live current speed, and road max speed appears as unavailable.
+
+### Driver Drowsiness Monitor Setup
+
+The drowsiness camera monitor uses a Python service file at the project root (`service.py`).
+
+```bash
+python -m pip install -r requirements-drowsiness.txt
+```
+
+After installing dependencies, click **Start Your Journey** on the landing page.
+The monitor auto-starts in the navigation screen corner and launches the Python service through Next.js APIs.
 
 ---
 

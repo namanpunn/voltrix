@@ -1,0 +1,8 @@
+flask==3.1.0
+flask-cors==5.0.0
+imutils==0.5.4
+opencv-python==4.10.0.84
+pygame==2.6.1
+scipy==1.14.1
+dlib-bin==20.0.0; platform_system == "Windows"
+dlib==19.24.6; platform_system != "Windows"

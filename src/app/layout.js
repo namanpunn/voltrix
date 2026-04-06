@@ -1,5 +1,6 @@
 import { DM_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import { ThemeProvider } from "./context/ThemeContext";
 import { LocationProvider } from "./context/LocationContext";
 

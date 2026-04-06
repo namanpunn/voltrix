@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Box, Typography, IconButton, Button, Chip, Fade, CircularProgress } from "@mui/material";
 import {
   CameraAlt, CameraAltOutlined, Close, Navigation,
@@ -66,7 +66,6 @@ function useSimulatedGPS(routeCoords, active) {
 
   useEffect(() => {
     if (!active || !routeCoords?.length) {
-      setPosition(null);
       return;
     }
     indexRef.current = 0;
@@ -87,7 +86,10 @@ function useSimulatedGPS(routeCoords, active) {
     return () => clearInterval(timerRef.current);
   }, [active, routeCoords]);
 
-  return { position, heading };
+  return {
+    position: active && routeCoords?.length ? position : null,
+    heading,
+  };
 }
 
 // ── AR Arrow Overlay ──────────────────────────────────────────────────────────
@@ -302,52 +304,77 @@ export default function CameraView({ routeCoords, routeInfo, onClose }) {
   const streamRef     = useRef(null);
   const [camReady,    setCamReady]    = useState(false);
   const [camError,    setCamError]    = useState("");
-  const [direction,   setDirection]   = useState("straight");
-  const [distToNext,  setDistToNext]  = useState(null);
-  const [stepIndex,   setStepIndex]   = useState(0);
-  const [speed,       setSpeed]       = useState(null);
-  const [arrived,     setArrived]     = useState(false);
+  const [hasLiveCamera, setHasLiveCamera] = useState(false);
 
   // Pick waypoints along route as "turn points" (every ~15 coords)
-  const waypoints = routeCoords
-    ? routeCoords.filter((_, i) => i % 15 === 0 || i === routeCoords.length - 1)
-    : [];
+  const waypoints = useMemo(
+    () =>
+      routeCoords
+        ? routeCoords.filter((_, i) => i % 15 === 0 || i === routeCoords.length - 1)
+        : [],
+    [routeCoords]
+  );
 
   // Simulated GPS movement along route
   const { position, heading } = useSimulatedGPS(routeCoords, camReady && !!routeCoords);
 
-  // ── Update direction when position or heading changes ──
-  useEffect(() => {
-    if (!position || !waypoints.length) return;
+  // ── Derive live AR guidance from current simulated position ──
+  const navigationState = useMemo(() => {
+    if (!position || !waypoints.length) {
+      return {
+        direction: "straight",
+        distToNext: null,
+        stepIndex: 0,
+        arrived: false,
+        speed: null,
+      };
+    }
 
-    // Find closest upcoming waypoint
-    let closestIdx = stepIndex;
-    let minDist    = Infinity;
-    for (let i = stepIndex; i < waypoints.length; i++) {
+    let closestIdx = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < waypoints.length; i++) {
       const d = distanceMetres(position, waypoints[i]);
-      if (d < minDist) { minDist = d; closestIdx = i; }
+      if (d < minDist) {
+        minDist = d;
+        closestIdx = i;
+      }
     }
 
-    // Auto-advance step
-    if (minDist < 40 && closestIdx < waypoints.length - 1) {
-      setStepIndex(closestIdx + 1);
+    const nextStepIndex =
+      minDist < 40 && closestIdx < waypoints.length - 1
+        ? closestIdx + 1
+        : closestIdx;
+
+    const destination = waypoints[waypoints.length - 1];
+    const distToDestination = distanceMetres(position, destination);
+    if (distToDestination < 50) {
+      return {
+        direction: "arrived",
+        distToNext: 0,
+        stepIndex: waypoints.length - 1,
+        arrived: true,
+        speed: 0,
+      };
     }
 
-    // Check arrival
-    const dest    = waypoints[waypoints.length - 1];
-    const distEnd = distanceMetres(position, dest);
-    if (distEnd < 50) { setDirection("arrived"); setArrived(true); return; }
+    const nextWp = waypoints[Math.min(nextStepIndex + 1, waypoints.length - 1)];
+    const bearing = getBearing(position, nextWp);
+    const direction = getTurnDirection(heading, bearing);
+    const distToNext = distanceMetres(position, nextWp);
+    const speed =
+      20 +
+      Math.abs(Math.sin((position[0] + position[1]) * 4000 + heading * 0.02)) * 25;
 
-    // Get next waypoint bearing
-    const nextWp   = waypoints[Math.min(closestIdx + 1, waypoints.length - 1)];
-    const bearing  = getBearing(position, nextWp);
-    const dir      = getTurnDirection(heading, bearing);
-    setDirection(dir);
-    setDistToNext(distanceMetres(position, nextWp));
+    return {
+      direction,
+      distToNext,
+      stepIndex: nextStepIndex,
+      arrived: false,
+      speed,
+    };
+  }, [position, heading, waypoints]);
 
-    // Simulated speed 20–45 km/h
-    setSpeed(20 + Math.random() * 25);
-  }, [position, heading]);
+  const { direction, distToNext, stepIndex, arrived, speed } = navigationState;
 
   // ── Start camera ──────────────────────────────────────────────────────────
   const startCamera = useCallback(async () => {
@@ -361,6 +388,7 @@ export default function CameraView({ routeCoords, routeInfo, onClose }) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        setHasLiveCamera(true);
         setCamReady(true);
       }
     } catch (err) {
@@ -370,6 +398,7 @@ export default function CameraView({ routeCoords, routeInfo, onClose }) {
         setCamError("No camera found on this device.");
       } else {
         // Demo mode — show AR overlay without real camera
+        setHasLiveCamera(false);
         setCamReady(true);
       }
     }
@@ -381,6 +410,7 @@ export default function CameraView({ routeCoords, routeInfo, onClose }) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
+      setHasLiveCamera(false);
     };
   }, []);
 
@@ -478,7 +508,7 @@ export default function CameraView({ routeCoords, routeInfo, onClose }) {
           />
 
           {/* Dark overlay when no real camera (demo mode) */}
-          {!streamRef.current && (
+          {!hasLiveCamera && (
             <Box sx={{
               position: "absolute", inset: 0,
               background: `
@@ -545,7 +575,7 @@ export default function CameraView({ routeCoords, routeInfo, onClose }) {
               backdropFilter: "blur(16px)",
             }}>
               <Typography sx={{ fontSize: "1.1rem", fontWeight: 700, color: C.green, fontFamily: fonts.display, mb: 0.5 }}>
-                🎉 You've Arrived!
+                🎉 You have arrived!
               </Typography>
               <Typography sx={{ fontSize: "0.78rem", color: C.textMuted, fontFamily: fonts.body, mb: 1.5 }}>
                 You have reached your destination.
