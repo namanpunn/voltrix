@@ -26,7 +26,13 @@ import { getColors, fonts } from "../app/utils/theme";
 const DEFAULT_SERVICE_URL = "http://127.0.0.1:5001";
 const POLL_INTERVAL_MS = 2000;
 
-export default function DrowsinessMonitorBox({ autoStart = false, isDark = true }) {
+export default function DrowsinessMonitorBox({
+  autoStart = false,
+  isDark = true,
+  forceCollapsed = false,
+  onRequestFocus,
+  onVisibilityChange,
+}) {
   const T = useMemo(() => getColors(isDark), [isDark]);
 
   const [visible, setVisible] = useState(true);
@@ -39,6 +45,9 @@ export default function DrowsinessMonitorBox({ autoStart = false, isDark = true 
 
   const autoStartFiredRef = useRef(false);
   const ownedSessionRef = useRef(false);
+
+  const expandedWidth = { xs: "min(92vw, 320px)", md: 318 };
+  const compactWidth = { xs: "min(88vw, 260px)", md: 220 };
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -115,8 +124,15 @@ export default function DrowsinessMonitorBox({ autoStart = false, isDark = true 
   useEffect(() => {
     if (autoStart) {
       setVisible(true);
+      onVisibilityChange?.(true);
     }
-  }, [autoStart]);
+  }, [autoStart, onVisibilityChange]);
+
+  useEffect(() => {
+    if (forceCollapsed) {
+      setCollapsed(true);
+    }
+  }, [forceCollapsed]);
 
   useEffect(() => {
     if (!visible) {
@@ -158,10 +174,21 @@ export default function DrowsinessMonitorBox({ autoStart = false, isDark = true 
   const feedUrl = `${serviceUrl}/video_feed`;
   const isDrowsy = Boolean(status?.isDrowsy);
 
+  const handleToggleCollapsed = useCallback(() => {
+    if (collapsed) {
+      onRequestFocus?.();
+    }
+    setCollapsed((prev) => !prev);
+  }, [collapsed, onRequestFocus]);
+
   if (!visible) {
     return (
       <IconButton
-        onClick={() => setVisible(true)}
+        onClick={() => {
+          onRequestFocus?.();
+          setVisible(true);
+          onVisibilityChange?.(true);
+        }}
         aria-label="Open drowsiness monitor"
         sx={{
           position: "absolute",
@@ -196,10 +223,11 @@ export default function DrowsinessMonitorBox({ autoStart = false, isDark = true 
         right: 16,
         bottom: { xs: 110, md: 18 },
         zIndex: 1200,
-        width: { xs: "min(92vw, 340px)", md: 340 },
+        width: collapsed ? compactWidth : expandedWidth,
         borderRadius: "14px",
-        bgcolor: T.navyLight,
+        bgcolor: isDark ? "rgba(17,24,39,0.88)" : "rgba(255,255,255,0.9)",
         border: `1px solid ${T.navyBorder}`,
+        backdropFilter: "blur(14px)",
         boxShadow: isDark
           ? "0 18px 44px rgba(2,6,23,0.55)"
           : "0 18px 44px rgba(15,23,42,0.18)",
@@ -236,7 +264,7 @@ export default function DrowsinessMonitorBox({ autoStart = false, isDark = true 
         <Stack direction="row" spacing={0.25}>
           <IconButton
             size="small"
-            onClick={() => setCollapsed((prev) => !prev)}
+            onClick={handleToggleCollapsed}
             sx={{ color: T.textMuted }}
           >
             {collapsed ? (
@@ -249,6 +277,7 @@ export default function DrowsinessMonitorBox({ autoStart = false, isDark = true 
             size="small"
             onClick={() => {
               setVisible(false);
+              onVisibilityChange?.(false);
               void stopService();
             }}
             sx={{ color: T.textMuted }}
