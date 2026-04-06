@@ -45,6 +45,7 @@ export default function MobileBottomSheet({
   const T = getColors(isDark);
   const sheetRef   = useRef(null);
   const dragRef    = useRef({ startY: 0, startH: 0, dragging: false });
+  const [isDragging, setIsDragging] = useState(false);
 
   // ── Height from snap name ────────────────────────────────────────────────
   const snapToHeight = useCallback((snap) => {
@@ -66,6 +67,7 @@ export default function MobileBottomSheet({
   // ── Drag handling ────────────────────────────────────────────────────────
   const onDragStart = useCallback((clientY) => {
     dragRef.current = { startY: clientY, startH: height, dragging: true };
+    setIsDragging(true);
   }, [height]);
 
   const onDragMove = useCallback((clientY) => {
@@ -78,6 +80,7 @@ export default function MobileBottomSheet({
   const onDragEnd = useCallback(() => {
     if (!dragRef.current.dragging) return;
     dragRef.current.dragging = false;
+    setIsDragging(false);
     const vh = window.innerHeight;
     const ratio = height / vh;
     // Snap to closest
@@ -92,7 +95,7 @@ export default function MobileBottomSheet({
   useEffect(() => {
     const handleMouseMove = (e) => onDragMove(e.clientY);
     const handleMouseUp   = () => onDragEnd();
-    if (dragRef.current.dragging) {
+    if (isDragging) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     }
@@ -100,7 +103,7 @@ export default function MobileBottomSheet({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [onDragMove, onDragEnd]);
+  }, [isDragging, onDragMove, onDragEnd]);
 
   // Touch events on handle
   const handleTouchStart = (e) => onDragStart(e.touches[0].clientY);
@@ -119,7 +122,7 @@ export default function MobileBottomSheet({
         bottom: 0, left: 0, right: 0,
         zIndex: 1200,
         height: `${height}px`,
-        transition: dragRef.current.dragging ? "none" : "height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: isDragging ? "none" : "height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
         display: "flex", flexDirection: "column",
         bgcolor: T.navyLight,
         borderTopLeftRadius: "20px",

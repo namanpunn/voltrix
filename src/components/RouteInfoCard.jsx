@@ -71,9 +71,9 @@ function DiffBadge({ primaryVal, altVal, lowerIsBetter = true, T }) {
 }
 
 export default function RouteInfoCard({ route, compareRoute = null, variant = "primary" }) {
-  if (!route) return null;
   const { isDark } = useTheme();
   const T = getColors(isDark);
+  if (!route) return null;
 
   const isAlt    = variant === "alternate";
   const accentClr = isAlt ? "#a78bfa" : T.cyan;

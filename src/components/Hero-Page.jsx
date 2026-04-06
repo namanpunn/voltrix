@@ -486,7 +486,7 @@ export default function ImprovedHeroPage() {
 
           {/* CTA Buttons */}
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mt: { xs: 3.5, md: 4, lg: 4.5 } }}>
-            <Link href="/navigation">
+            <Link href="/navigation?drowsiness=1">
               <CTAButton variant="contained" size="large">
                 Start Your Journey
               </CTAButton>
@@ -536,7 +536,7 @@ export default function ImprovedHeroPage() {
           >
             Traditional navigation apps fall short when it matters most. They calculate the shortest or fastest 
             route but leave you guessing at critical decision points. Should you make that U-turn? Is the 
-            alternate road actually faster? Existing systems don't allow real-time route simulation from your 
+            alternate road actually faster? Existing systems don&apos;t allow real-time route simulation from your 
             current position, and map views often fail at complex intersections. Our platform bridges this gap 
             by combining intelligent optimization with camera-based visual guidance, empowering you to make 
             informed decisions on the fly.

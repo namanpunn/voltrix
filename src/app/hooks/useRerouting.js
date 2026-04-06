@@ -59,20 +59,13 @@ export function useRerouting({ primaryRoute, onRerouted, onStatusChange }) {
   const [roadblocks,     setRoadblocks]     = useState([]);  // user-reported blocks
   const [currentPos,     setCurrentPos]     = useState(null);
   const [distFromRoute,  setDistFromRoute]  = useState(0);
+  const [simulatedSpeedKmh, setSimulatedSpeedKmh] = useState(null);
 
   const lastRerouteRef  = useRef(0);
   const simulPosRef     = useRef(null);  // simulated GPS index
+  const lastSimSampleRef = useRef(null);
   const timerRef        = useRef(null);
   const offRouteCountRef= useRef(0);     // consecutive off-route checks before alerting
-
-  // ── Simulate position moving along route (same as CameraView) ───────────────
-  useEffect(() => {
-    if (!primaryRoute?.coordinates?.length) {
-      simulPosRef.current = null;
-      return;
-    }
-    simulPosRef.current = 0;
-  }, [primaryRoute]);
 
   // ── Advance simulated position ────────────────────────────────────────────
   const advanceSimulatedPos = useCallback(() => {
@@ -105,6 +98,20 @@ export function useRerouting({ primaryRoute, onRerouted, onStatusChange }) {
     const pos  = advanceSimulatedPos();
     if (!pos) return;
 
+    const now = Date.now();
+    const lastSample = lastSimSampleRef.current;
+    if (lastSample) {
+      const dtSec = (now - lastSample.at) / 1000;
+      if (Number.isFinite(dtSec) && dtSec > 0.4) {
+        const distM = distanceBetween(lastSample.coords, pos);
+        const speed = distM < 1.5 ? 0 : (distM / dtSec) * 3.6;
+        if (Number.isFinite(speed) && speed >= 0 && speed <= 220) {
+          setSimulatedSpeedKmh(Math.round(speed * 10) / 10);
+        }
+      }
+    }
+    lastSimSampleRef.current = { coords: pos, at: now };
+
     setCurrentPos(pos);
     const dist = distanceToRoute(pos, primaryRoute.coordinates);
     setDistFromRoute(Math.round(dist));
@@ -129,13 +136,29 @@ export function useRerouting({ primaryRoute, onRerouted, onStatusChange }) {
     clearInterval(timerRef.current);
     offRouteCountRef.current = 0;
     setRerouteStatus("idle");
+
+    if (!primaryRoute?.coordinates?.length) {
+      simulPosRef.current = null;
+      lastSimSampleRef.current = null;
+      setSimulatedSpeedKmh(null);
+      return;
+    }
+
+    simulPosRef.current = 0;
+    lastSimSampleRef.current = {
+      coords: primaryRoute.coordinates[0],
+      at: Date.now(),
+    };
+    setSimulatedSpeedKmh(0);
     timerRef.current = setInterval(checkPosition, RECHECK_INTERVAL_MS);
-  }, [checkPosition]);
+  }, [checkPosition, primaryRoute]);
 
   const stopMonitoring = useCallback(() => {
     clearInterval(timerRef.current);
     setRerouteStatus("idle");
     setCurrentPos(null);
+    setSimulatedSpeedKmh(null);
+    lastSimSampleRef.current = null;
   }, []);
 
   useEffect(() => () => clearInterval(timerRef.current), []);
@@ -231,6 +254,7 @@ export function useRerouting({ primaryRoute, onRerouted, onStatusChange }) {
     roadblocks,
     currentPos,
     distFromRoute,
+    simulatedSpeedKmh,
     startMonitoring,
     stopMonitoring,
     recalculate,

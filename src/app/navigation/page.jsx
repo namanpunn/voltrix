@@ -1,28 +1,42 @@
 // ─── app/navigation/page.jsx ──────────────────────────────────────────────────
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { Suspense, useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Box, IconButton, Tooltip, useMediaQuery } from "@mui/material";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { TrafficRounded, DarkModeRounded, LightModeRounded } from "@mui/icons-material";
+import { useSearchParams } from "next/navigation";
 import Sidebar           from "../../components/Sidebar";
 import MobileBottomSheet from "../../components/MobileBottomSheet";
 import MapView           from "../../components/MapView";
 import CameraView        from "../../components/CameraView";
+import DrowsinessMonitorBox from "../../components/DrowsinessMonitorBox";
+import SpeedMonitorBox   from "../../components/SpeedMonitorBox";
 import RerouteAlert      from "../../components/RerouteAlert";
 import { useRoute }      from "../hooks/useRoute";
 import { useRerouting }  from "../hooks/useRerouting";
 import { useTheme }      from "../context/ThemeContext";
+import { useLocation }   from "../context/LocationContext";
 
-export default function NavigationPage() {
+function NavigationPageContent() {
+  const searchParams = useSearchParams();
   const [source,      setSource]      = useState("");
   const [destination, setDestination] = useState("");
   const [showCamera,  setShowCamera]  = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
   const [sheetSnap,   setSheetSnap]   = useState("full"); // mobile bottom sheet snap
   const { isDark, toggleTheme } = useTheme();
+  const {
+    userCoords,
+    speedKmh: gpsSpeedKmh,
+    speedSource: gpsSpeedSource,
+    locationPermission,
+    locationError,
+  } = useLocation();
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const autoStartDrowsiness = searchParams.get("drowsiness") !== "0";
+  const autoStartSpeed = searchParams.get("speed") !== "0";
   const mapRef = useRef(null);
   const lastRouteRef = useRef(null); // cache last route data for traffic toggle
   const lastAlternateRef = useRef(null); // cache last alternate route data for traffic toggle
@@ -39,7 +53,7 @@ export default function NavigationPage() {
   // ── Rerouting state ──────────────────────────────────────────────────────
   const {
     rerouteStatus, rerouteHistory, roadblocks,
-    currentPos, distFromRoute,
+    currentPos, distFromRoute, simulatedSpeedKmh,
     startMonitoring, stopMonitoring,
     recalculate, simulateOffRoute,
     reportRoadblock, removeRoadblock,
@@ -68,6 +82,36 @@ export default function NavigationPage() {
     },
   });
 
+  const effectiveSpeedKmh = useMemo(() => {
+    if (Number.isFinite(gpsSpeedKmh)) {
+      return gpsSpeedKmh;
+    }
+    if (Number.isFinite(simulatedSpeedKmh)) {
+      return simulatedSpeedKmh;
+    }
+    return null;
+  }, [gpsSpeedKmh, simulatedSpeedKmh]);
+
+  const effectiveSpeedSource = useMemo(() => {
+    if (Number.isFinite(gpsSpeedKmh)) {
+      return gpsSpeedSource || "gps";
+    }
+    if (Number.isFinite(simulatedSpeedKmh)) {
+      return "simulation";
+    }
+    return "unknown";
+  }, [gpsSpeedKmh, gpsSpeedSource, simulatedSpeedKmh]);
+
+  const effectiveCoords = useMemo(() => {
+    if (Array.isArray(userCoords) && userCoords.length === 2) {
+      return userCoords;
+    }
+    if (Array.isArray(currentPos) && currentPos.length === 2) {
+      return currentPos;
+    }
+    return null;
+  }, [userCoords, currentPos]);
+
   // Start monitoring when primary route is ready
   useEffect(() => {
     if (primaryRoute) {
@@ -76,7 +120,7 @@ export default function NavigationPage() {
       stopMonitoring();
     }
     return () => stopMonitoring();
-  }, [primaryRoute?.fromText]); // only re-run when a new route is set
+  }, [primaryRoute, startMonitoring, stopMonitoring]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleGetRoute = useCallback(async () => {
@@ -328,6 +372,21 @@ export default function NavigationPage() {
           onRecalculate={() => recalculate("off_route")}
           onDismiss={dismissReroute}
         />
+
+        <DrowsinessMonitorBox
+          autoStart={autoStartDrowsiness}
+          isDark={isDark}
+        />
+
+        <SpeedMonitorBox
+          autoStart={autoStartSpeed}
+          isDark={isDark}
+          currentSpeedKmh={effectiveSpeedKmh}
+          speedSource={effectiveSpeedSource}
+          currentCoords={effectiveCoords}
+          locationPermission={locationPermission}
+          locationError={locationError}
+        />
       </Box>
 
       {/* ── Mobile: bottom sheet overlay ──────────────────────────────── */}
@@ -361,5 +420,24 @@ export default function NavigationPage() {
         />
       )}
     </Box>
+  );
+}
+
+function NavigationPageFallback() {
+  return (
+    <Box
+      sx={{
+        height: "100vh",
+        bgcolor: "#0a0f1e",
+      }}
+    />
+  );
+}
+
+export default function NavigationPage() {
+  return (
+    <Suspense fallback={<NavigationPageFallback />}>
+      <NavigationPageContent />
+    </Suspense>
   );
 }

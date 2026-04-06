@@ -3,7 +3,6 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
 import { Box, Typography, Button, LinearProgress, Chip } from "@mui/material";
 import {
   WarningAmberRounded, AutorenewRounded, CheckCircleOutlined,
@@ -58,40 +57,8 @@ export default function RerouteAlert({
   onRecalculate,
   onDismiss,
 }) {
-  const [visible,  setVisible]  = useState(false);
-  const [progress, setProgress] = useState(0);
-
   const cfg = STATUS_CONFIG[status];
-
-  // Animate in/out
-  useEffect(() => {
-    if (status && status !== "idle") {
-      setVisible(true);
-      setProgress(0);
-    } else {
-      setVisible(false);
-    }
-  }, [status]);
-
-  // Progress bar animation for recalculating
-  useEffect(() => {
-    if (status !== "recalculating" && status !== "blocked") return;
-    setProgress(0);
-    const t = setInterval(() => {
-      setProgress(p => {
-        if (p >= 95) { clearInterval(t); return 95; }
-        return p + Math.random() * 15;
-      });
-    }, 200);
-    return () => clearInterval(t);
-  }, [status]);
-
-  useEffect(() => {
-    if (status === "rerouted") {
-      setProgress(100);
-    }
-  }, [status]);
-
+  const visible = Boolean(status && status !== "idle");
   if (!visible || !cfg) return null;
 
   const IconComp = cfg.icon;
@@ -120,8 +87,8 @@ export default function RerouteAlert({
         {/* Progress bar at top */}
         {(cfg.showProgress || status === "rerouted") && (
           <LinearProgress
-            variant="determinate"
-            value={progress}
+            variant={status === "rerouted" ? "determinate" : "indeterminate"}
+            value={status === "rerouted" ? 100 : undefined}
             sx={{
               height: 3,
               bgcolor: "rgba(255,255,255,0.05)",

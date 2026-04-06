@@ -12,16 +12,6 @@ const C = {
 };
 const fonts = { body: "'DM Sans', sans-serif", display: "'Space Grotesk', sans-serif" };
 
-// ── Leaflet CSS injected once ─────────────────────────────────────────────────
-function ensureLeafletCSS() {
-  if (typeof window === "undefined") return;
-  if (document.getElementById("leaflet-css")) return;
-  const link = document.createElement("link");
-  link.id = "leaflet-css"; link.rel = "stylesheet";
-  link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-  document.head.appendChild(link);
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function makePulseIcon(L, color) {
   return L.divIcon({
@@ -172,7 +162,8 @@ function drawTrafficRoute(map, L, trafficSegments, fromCoords, toCoords, layersR
 function getTomTomTrafficUrl() {
   const key = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TOMTOM_API_KEY : "";
   if (!key || key === "YOUR_TOMTOM_API_KEY_HERE") return null;
-  return `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${key}&thickness=6&tileSize=256`;
+  // NOTE: relative0 style does not support thickness param; sending it returns 400.
+  return `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${key}&tileSize=256`;
 }
 
 // ── SingleMap ─────────────────────────────────────────────────────────────────
@@ -188,56 +179,81 @@ const SingleMap = forwardRef(function SingleMap({ label, labelColor = C.cyan, ba
   const initedRef     = useRef(false);  // guard against double-init (StrictMode)
   const trafficTileRef = useRef(null);  // TomTom traffic tile layer
   const baseTileRef    = useRef(null);  // base tile layer (dark/light)
+  const initialIsDarkRef = useRef(isDark);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (initedRef.current) return;   // ← StrictMode guard
     if (!divRef.current)  return;
     initedRef.current = true;
+    let cancelled = false;
 
-    ensureLeafletCSS();
+    import("leaflet")
+      .then(mod => {
+        if (cancelled || !divRef.current) return;
+        const L = mod.default || mod;
 
-    import("leaflet").then(mod => {
-      // If DOM ref gone (real unmount), bail
-      if (!divRef.current) return;
-      const L = mod.default;
+        // Fix default icons
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+          iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+          shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        });
 
-      // Fix default icons
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
-
-      // Guard: if div already has a leaflet instance (StrictMode remount), bail
-      if (divRef.current._leaflet_id) return;
-
-      const map = L.map(divRef.current, {
-        center: [28.6139, 77.209], zoom: 12,
-        zoomControl: false, attributionControl: true,
-      });
-
-      L.control.zoom({ position: "bottomright" }).addTo(map);
-      baseTileRef.current = L.tileLayer(isDark ? DARK_TILES : LIGHT_TILES, {
-        attribution: "© OSM © CARTO", subdomains: "abcd", maxZoom: 19,
-      }).addTo(map);
-
-      mapRef.current = map;
-      LRef.current   = L;
-      setReady(true);
-
-      // Flush any pending draw
-      if (pendingRef.current) {
-        const p = pendingRef.current;
-        pendingRef.current = null;
-        if (p.isTraffic) {
-          drawTrafficRoute(map, L, p.trafficSegments, p.fromCoords, p.toCoords, layersRef, p.labels || {});
-        } else {
-          drawRoute(map, L, p.coordinates, p.fromCoords, p.toCoords, p.color, layersRef, p.labels || {});
+        // Recover from stale container IDs left behind by rapid remounts.
+        if (divRef.current._leaflet_id) {
+          try {
+            divRef.current._leaflet_id = null;
+          } catch (_) {}
         }
+
+        const map = L.map(divRef.current, {
+          center: [28.6139, 77.209], zoom: 12,
+          zoomControl: false, attributionControl: true,
+        });
+
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+        baseTileRef.current = L.tileLayer(initialIsDarkRef.current ? DARK_TILES : LIGHT_TILES, {
+          attribution: "© OSM © CARTO", subdomains: "abcd", maxZoom: 19,
+        }).addTo(map);
+
+        mapRef.current = map;
+        LRef.current   = L;
+        setReady(true);
+
+        // Flush any pending draw
+        if (pendingRef.current) {
+          const p = pendingRef.current;
+          pendingRef.current = null;
+          if (p.isTraffic) {
+            drawTrafficRoute(map, L, p.trafficSegments, p.fromCoords, p.toCoords, layersRef, p.labels || {});
+          } else {
+            drawRoute(map, L, p.coordinates, p.fromCoords, p.toCoords, p.color, layersRef, p.labels || {});
+          }
+        }
+      })
+      .catch(() => {
+        initedRef.current = false;
+      });
+
+    return () => {
+      cancelled = true;
+      layersRef.current = [];
+      pendingRef.current = null;
+      trafficTileRef.current = null;
+      baseTileRef.current = null;
+
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (_) {}
       }
-    });
+
+      mapRef.current = null;
+      LRef.current = null;
+      initedRef.current = false;
+    };
   }, []);
 
   // ── Switch base tile layer on theme change ──────────────────────────────
