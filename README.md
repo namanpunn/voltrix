@@ -173,6 +173,7 @@ src/
 | **Maps** | ![Leaflet](https://img.shields.io/badge/Leaflet_1.9-199900?style=flat-square&logo=leaflet) | Interactive map rendering |
 | **Geocoding** | ![OSM](https://img.shields.io/badge/Nominatim-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | Place search & autocomplete |
 | **Routing** | ![OSRM](https://img.shields.io/badge/OSRM-2C3E50?style=flat-square) | Driving directions + traffic |
+| **Vision AI** | ![@mediapipe/tasks-vision](https://img.shields.io/badge/MediaPipe-FBBC05?style=flat-square&logo=google) | In-browser driver drowsiness detection |
 | **Tiles** | ![CartoDB](https://img.shields.io/badge/CartoDB-F05A28?style=flat-square) | Dark & light basemaps |
 | **Speed Limits** | ![TomTom](https://img.shields.io/badge/TomTom-FF0000?style=flat-square) | Current road max-speed lookup |
 | **Fonts** | ![Google Fonts](https://img.shields.io/badge/Google_Fonts-4285F4?style=flat-square&logo=google&logoColor=white) | Space Grotesk + DM Sans |
@@ -216,14 +217,22 @@ If no key is set, the monitor still shows live current speed, and road max speed
 
 ### Driver Drowsiness Monitor Setup
 
-The drowsiness camera monitor uses a Python service file at the project root (`service.py`).
+The drowsiness camera monitor now runs fully in-browser using **MediaPipe Face Landmarker**.
+No Python service is required, so it works on **Vercel deploys**.
+
+- Click **Start Your Journey** on the landing page.
+- The monitor opens on the navigation screen and auto-requests camera permission.
+- Detection and alerts run client-side (no video upload).
+
+### Optional: Legacy Local Python Mode (Not needed for Vercel)
+
+If you still want to run the old local Python backend for experimentation, use:
 
 ```bash
 python -m pip install -r requirements-drowsiness.txt
 ```
 
-After installing dependencies, click **Start Your Journey** on the landing page.
-The monitor auto-starts in the navigation screen corner and launches the Python service through Next.js APIs.
+This legacy path uses `service.py` and local Next API wrappers, but it is not required for production deploys.
 
 ---
 

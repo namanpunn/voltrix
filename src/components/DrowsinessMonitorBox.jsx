@@ -18,13 +18,80 @@ import {
   PlayArrowRounded,
   StopRounded,
   VideocamRounded,
-  WarningAmberRounded,
   VisibilityRounded,
+  VolumeOffRounded,
+  VolumeUpRounded,
+  WarningAmberRounded,
 } from "@mui/icons-material";
 import { getColors, fonts } from "../app/utils/theme";
 
-const DEFAULT_SERVICE_URL = "http://127.0.0.1:5001";
-const POLL_INTERVAL_MS = 2000;
+const MEDIAPIPE_WASM_PATH =
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm";
+const MEDIAPIPE_MODEL_PATH =
+  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+const DEFAULT_EAR_THRESHOLD = 0.23;
+const CONSEC_FRAMES = 10;
+const CALIBRATION_FRAMES = 28;
+const UI_UPDATE_INTERVAL_MS = 120;
+const ALERT_BEEP_COOLDOWN_MS = 1800;
+const ALERT_AUDIO_PATH = "/music.wav";
+
+const LEFT_EYE_IDX = [33, 160, 158, 133, 153, 144];
+const RIGHT_EYE_IDX = [362, 385, 387, 263, 373, 380];
+
+function dist2D(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.hypot(dx, dy);
+}
+
+function eyeAspectRatio(landmarks, idx) {
+  if (!landmarks || landmarks.length < 388) {
+    return null;
+  }
+
+  const p1 = landmarks[idx[0]];
+  const p2 = landmarks[idx[1]];
+  const p3 = landmarks[idx[2]];
+  const p4 = landmarks[idx[3]];
+  const p5 = landmarks[idx[4]];
+  const p6 = landmarks[idx[5]];
+
+  if (!p1 || !p2 || !p3 || !p4 || !p5 || !p6) {
+    return null;
+  }
+
+  const a = dist2D(p2, p6);
+  const b = dist2D(p3, p5);
+  const c = dist2D(p1, p4);
+
+  if (!Number.isFinite(c) || c <= 0) {
+    return null;
+  }
+
+  return (a + b) / (2 * c);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function formatCamError(error) {
+  if (!error) {
+    return "Camera access failed.";
+  }
+  if (error.name === "NotAllowedError") {
+    return "Camera permission denied. Please allow camera access.";
+  }
+  if (error.name === "NotFoundError") {
+    return "No camera device found.";
+  }
+  if (error.name === "NotReadableError") {
+    return "Camera is in use by another app. Close it and retry.";
+  }
+  return error.message || "Unable to start camera.";
+}
 
 export default function DrowsinessMonitorBox({
   autoStart = false,
@@ -37,89 +104,279 @@ export default function DrowsinessMonitorBox({
 
   const [visible, setVisible] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [softAlertEnabled, setSoftAlertEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
-  const [serviceUrl, setServiceUrl] = useState(DEFAULT_SERVICE_URL);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
 
   const autoStartFiredRef = useRef(false);
-  const ownedSessionRef = useRef(false);
+  const streamRef = useRef(null);
+  const videoRef = useRef(null);
+  const rafRef = useRef(null);
+  const detectorRef = useRef(null);
+  const startAtRef = useRef(0);
+  const frameCountRef = useRef(0);
+  const closeCounterRef = useRef(0);
+  const calibrationEarsRef = useRef([]);
+  const thresholdRef = useRef(DEFAULT_EAR_THRESHOLD);
+  const lastUiUpdateAtRef = useRef(0);
+  const isRunningRef = useRef(false);
+  const alertBeepAtRef = useRef(0);
+  const alertAudioRef = useRef(null);
+  const softAlertEnabledRef = useRef(true);
 
   const expandedWidth = { xs: "min(92vw, 320px)", md: 318 };
   const compactWidth = { xs: "min(88vw, 260px)", md: 220 };
 
-  const fetchStatus = useCallback(async () => {
+  const playSoftAlert = useCallback(async () => {
+    const audio = alertAudioRef.current;
+    if (!audio) {
+      return;
+    }
+
     try {
-      const response = await fetch("/api/drowsiness/status", { cache: "no-store" });
-      const payload = await response.json();
-
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || "Failed to fetch monitor status");
-      }
-
-      setRunning(Boolean(payload.running));
-      setStatus(payload.serviceStatus || null);
-      if (payload.serviceUrl) {
-        setServiceUrl(payload.serviceUrl);
-      }
-
-      const nextError = payload.serviceStatus?.error || payload.lastError || "";
-      setError(nextError);
-    } catch (err) {
-      setError(err.message || "Status endpoint failed");
-      setRunning(false);
+      audio.currentTime = 0;
+      await audio.play();
+    } catch {
+      // Ignore autoplay/policy errors.
     }
   }, []);
 
-  const startService = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const attachStreamToVideo = useCallback(async () => {
+    const stream = streamRef.current;
+    const video = videoRef.current;
+    if (!stream || !video) {
+      return;
+    }
 
-    try {
-      const response = await fetch("/api/drowsiness/start", {
-        method: "POST",
-        cache: "no-store",
-      });
-      const payload = await response.json();
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
 
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || "Unable to start drowsiness service");
+    if (video.paused || video.readyState < 2) {
+      try {
+        await video.play();
+      } catch {
+        // Ignore autoplay race errors; user can retry.
       }
-
-      setRunning(Boolean(payload.running));
-      setStatus(payload.serviceStatus || null);
-      if (payload.serviceUrl) {
-        setServiceUrl(payload.serviceUrl);
-      }
-
-      const nextError = payload.serviceStatus?.error || payload.error || "";
-      setError(nextError);
-      ownedSessionRef.current = true;
-    } catch (err) {
-      setRunning(false);
-      setError(err.message || "Unable to start service");
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  const stopService = useCallback(async () => {
-    setLoading(true);
+  const stopMonitoring = useCallback(() => {
+    isRunningRef.current = false;
+
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setRunning(false);
+    setLoading(false);
+    setStatus(null);
+
+    closeCounterRef.current = 0;
+    frameCountRef.current = 0;
+    calibrationEarsRef.current = [];
+    thresholdRef.current = DEFAULT_EAR_THRESHOLD;
+    lastUiUpdateAtRef.current = 0;
+  }, []);
+
+  const runDetectionFrame = useCallback(
+    (timeMs) => {
+      if (!isRunningRef.current || !detectorRef.current) {
+        return;
+      }
+
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) {
+        rafRef.current = requestAnimationFrame(runDetectionFrame);
+        return;
+      }
+
+      let faceCount = 0;
+      let currentEar = 0;
+      let isDrowsy = false;
+
+      try {
+        const result = detectorRef.current.detectForVideo(video, timeMs);
+        const faces = result?.faceLandmarks || [];
+        faceCount = faces.length;
+
+        if (faceCount > 0) {
+          const landmarks = faces[0];
+          const leftEar = eyeAspectRatio(landmarks, LEFT_EYE_IDX);
+          const rightEar = eyeAspectRatio(landmarks, RIGHT_EYE_IDX);
+
+          const ear =
+            Number.isFinite(leftEar) && Number.isFinite(rightEar)
+              ? (leftEar + rightEar) / 2
+              : null;
+
+          if (Number.isFinite(ear)) {
+            currentEar = ear;
+
+            if (calibrationEarsRef.current.length < CALIBRATION_FRAMES) {
+              calibrationEarsRef.current.push(ear);
+
+              if (calibrationEarsRef.current.length === CALIBRATION_FRAMES) {
+                const baseline =
+                  calibrationEarsRef.current.reduce((sum, value) => sum + value, 0) /
+                  CALIBRATION_FRAMES;
+                thresholdRef.current = clamp(baseline * 0.72, 0.18, 0.29);
+              }
+            }
+
+            if (ear < thresholdRef.current) {
+              closeCounterRef.current += 1;
+            } else {
+              closeCounterRef.current = 0;
+            }
+
+            isDrowsy = closeCounterRef.current >= CONSEC_FRAMES;
+          }
+        } else {
+          closeCounterRef.current = 0;
+        }
+      } catch (detErr) {
+        setError(detErr.message || "Face landmark detection failed.");
+      }
+
+      frameCountRef.current += 1;
+
+      if (isDrowsy && softAlertEnabledRef.current) {
+        const now = Date.now();
+        if (now - alertBeepAtRef.current > ALERT_BEEP_COOLDOWN_MS) {
+          alertBeepAtRef.current = now;
+          void playSoftAlert();
+        }
+      }
+
+      if (timeMs - lastUiUpdateAtRef.current >= UI_UPDATE_INTERVAL_MS) {
+        lastUiUpdateAtRef.current = timeMs;
+        const uptimeSec = startAtRef.current
+          ? (Date.now() - startAtRef.current) / 1000
+          : 0;
+
+        setStatus({
+          ready: frameCountRef.current > 0,
+          running: true,
+          isDrowsy,
+          ear: currentEar,
+          counter: closeCounterRef.current,
+          faceCount,
+          frameCount: frameCountRef.current,
+          error: "",
+          uptimeSec,
+          threshold: thresholdRef.current,
+          consecutiveFrames: CONSEC_FRAMES,
+          calibrationProgress: clamp(
+            calibrationEarsRef.current.length / CALIBRATION_FRAMES,
+            0,
+            1
+          ),
+        });
+      }
+
+      rafRef.current = requestAnimationFrame(runDetectionFrame);
+    },
+    [playSoftAlert]
+  );
+
+  const initDetector = useCallback(async () => {
+    if (detectorRef.current) {
+      return detectorRef.current;
+    }
+
+    const { FaceLandmarker, FilesetResolver } = await import(
+      "@mediapipe/tasks-vision"
+    );
+    const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH);
+
+    const baseConfig = {
+      outputFaceBlendshapes: false,
+      outputFacialTransformationMatrixes: false,
+      runningMode: "VIDEO",
+      numFaces: 1,
+    };
+
     try {
-      await fetch("/api/drowsiness/stop", {
-        method: "POST",
-        cache: "no-store",
+      detectorRef.current = await FaceLandmarker.createFromOptions(vision, {
+        ...baseConfig,
+        baseOptions: {
+          modelAssetPath: MEDIAPIPE_MODEL_PATH,
+          delegate: "GPU",
+        },
       });
     } catch {
-      // Ignore stop errors and reset local state anyway.
-    } finally {
-      setRunning(false);
-      setStatus(null);
-      setLoading(false);
-      ownedSessionRef.current = false;
+      detectorRef.current = await FaceLandmarker.createFromOptions(vision, {
+        ...baseConfig,
+        baseOptions: {
+          modelAssetPath: MEDIAPIPE_MODEL_PATH,
+          delegate: "CPU",
+        },
+      });
     }
+
+    return detectorRef.current;
   }, []);
+
+  const startMonitoring = useCallback(async () => {
+    if (isRunningRef.current) {
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("This browser does not support camera access.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setStatus(null);
+
+    try {
+      await initDetector();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 960 },
+          height: { ideal: 540 },
+          frameRate: { ideal: 24, max: 30 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+
+      isRunningRef.current = true;
+      setRunning(true);
+      startAtRef.current = Date.now();
+      frameCountRef.current = 0;
+      closeCounterRef.current = 0;
+      calibrationEarsRef.current = [];
+      thresholdRef.current = DEFAULT_EAR_THRESHOLD;
+      alertBeepAtRef.current = 0;
+      lastUiUpdateAtRef.current = 0;
+
+      rafRef.current = requestAnimationFrame(runDetectionFrame);
+    } catch (err) {
+      setError(formatCamError(err));
+      stopMonitoring();
+    } finally {
+      setLoading(false);
+    }
+  }, [initDetector, runDetectionFrame, stopMonitoring]);
 
   useEffect(() => {
     if (autoStart) {
@@ -129,49 +386,53 @@ export default function DrowsinessMonitorBox({
   }, [autoStart, onVisibilityChange]);
 
   useEffect(() => {
+    softAlertEnabledRef.current = softAlertEnabled;
+  }, [softAlertEnabled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const audio = new Audio(ALERT_AUDIO_PATH);
+    audio.preload = "auto";
+    audio.volume = 0.9;
+    alertAudioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audio.src = "";
+      alertAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!running || collapsed || !visible) {
+      return;
+    }
+    void attachStreamToVideo();
+  }, [running, collapsed, visible, attachStreamToVideo]);
+
+  useEffect(() => {
     if (forceCollapsed) {
       setCollapsed(true);
     }
   }, [forceCollapsed]);
 
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
-    void fetchStatus();
-  }, [visible, fetchStatus]);
-
-  useEffect(() => {
-    if (!visible || !autoStart || autoStartFiredRef.current) {
+    if (!visible || !autoStart || autoStartFiredRef.current || running) {
       return;
     }
     autoStartFiredRef.current = true;
-    void startService();
-  }, [visible, autoStart, startService]);
-
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-    const id = setInterval(() => {
-      void fetchStatus();
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [visible, fetchStatus]);
+    void startMonitoring();
+  }, [visible, autoStart, running, startMonitoring]);
 
   useEffect(() => {
     return () => {
-      if (ownedSessionRef.current) {
-        fetch("/api/drowsiness/stop", {
-          method: "POST",
-          cache: "no-store",
-          keepalive: true,
-        }).catch(() => {});
-      }
+      stopMonitoring();
     };
-  }, []);
+  }, [stopMonitoring]);
 
-  const feedUrl = `${serviceUrl}/video_feed`;
   const isDrowsy = Boolean(status?.isDrowsy);
 
   const handleToggleCollapsed = useCallback(() => {
@@ -264,21 +525,30 @@ export default function DrowsinessMonitorBox({
         <Stack direction="row" spacing={0.25}>
           <IconButton
             size="small"
-            onClick={handleToggleCollapsed}
+            onClick={() => setSoftAlertEnabled((prev) => !prev)}
             sx={{ color: T.textMuted }}
           >
+            {softAlertEnabled ? (
+              <VolumeUpRounded sx={{ fontSize: 15 }} />
+            ) : (
+              <VolumeOffRounded sx={{ fontSize: 15 }} />
+            )}
+          </IconButton>
+
+          <IconButton size="small" onClick={handleToggleCollapsed} sx={{ color: T.textMuted }}>
             {collapsed ? (
               <OpenInFullRounded sx={{ fontSize: 15 }} />
             ) : (
               <MinimizeRounded sx={{ fontSize: 15 }} />
             )}
           </IconButton>
+
           <IconButton
             size="small"
             onClick={() => {
               setVisible(false);
               onVisibilityChange?.(false);
-              void stopService();
+              stopMonitoring();
             }}
             sx={{ color: T.textMuted }}
           >
@@ -298,7 +568,7 @@ export default function DrowsinessMonitorBox({
           <Box sx={{ ml: "auto" }}>
             {running ? (
               <Button
-                onClick={stopService}
+                onClick={stopMonitoring}
                 disabled={loading}
                 size="small"
                 startIcon={<StopRounded sx={{ fontSize: 14 }} />}
@@ -308,7 +578,7 @@ export default function DrowsinessMonitorBox({
               </Button>
             ) : (
               <Button
-                onClick={startService}
+                onClick={startMonitoring}
                 disabled={loading}
                 size="small"
                 startIcon={<PlayArrowRounded sx={{ fontSize: 14 }} />}
@@ -338,17 +608,17 @@ export default function DrowsinessMonitorBox({
               <Stack alignItems="center" spacing={1}>
                 <CircularProgress size={26} sx={{ color: T.cyan }} />
                 <Typography sx={{ fontSize: "0.72rem", color: T.textMuted, fontFamily: fonts.body }}>
-                  Starting Python detector...
+                  Initializing vision model...
                 </Typography>
               </Stack>
             ) : running ? (
               <Box
-                component="img"
-                src={feedUrl}
-                alt="Drowsiness detection stream"
-                onError={() => {
-                  setError((prev) => prev || "Video stream not available yet.");
-                }}
+                component="video"
+                ref={videoRef}
+                muted
+                autoPlay
+                playsInline
+                aria-label="Driver webcam feed"
                 sx={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
@@ -380,7 +650,7 @@ export default function DrowsinessMonitorBox({
             <Chip
               size="small"
               variant="outlined"
-              label={`EAR: ${status?.ear != null ? status.ear : "--"}`}
+              label={`EAR: ${status?.ear ? status.ear.toFixed(3) : "--"}`}
               sx={{ borderColor: T.navyBorder, color: T.textSub, fontSize: "0.66rem", height: 22 }}
             />
             <Chip
@@ -393,6 +663,12 @@ export default function DrowsinessMonitorBox({
               size="small"
               variant="outlined"
               label={`Uptime: ${Math.round(status?.uptimeSec || 0)}s`}
+              sx={{ borderColor: T.navyBorder, color: T.textSub, fontSize: "0.66rem", height: 22 }}
+            />
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`Calib: ${Math.round((status?.calibrationProgress || 0) * 100)}%`}
               sx={{ borderColor: T.navyBorder, color: T.textSub, fontSize: "0.66rem", height: 22 }}
             />
           </Stack>
@@ -417,7 +693,7 @@ export default function DrowsinessMonitorBox({
               <Button
                 fullWidth
                 variant="outlined"
-                onClick={stopService}
+                onClick={stopMonitoring}
                 disabled={loading}
                 startIcon={<StopRounded sx={{ fontSize: 15 }} />}
                 sx={{
@@ -438,7 +714,7 @@ export default function DrowsinessMonitorBox({
               <Button
                 fullWidth
                 variant="contained"
-                onClick={startService}
+                onClick={startMonitoring}
                 disabled={loading}
                 startIcon={<PlayArrowRounded sx={{ fontSize: 15 }} />}
                 sx={{
