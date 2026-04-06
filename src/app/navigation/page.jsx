@@ -37,6 +37,9 @@ function NavigationPageContent() {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const autoStartDrowsiness = searchParams.get("drowsiness") !== "0";
   const autoStartSpeed = searchParams.get("speed") !== "0";
+  const [activeMonitor, setActiveMonitor] = useState(() =>
+    autoStartDrowsiness ? "driver" : "speed"
+  );
   const mapRef = useRef(null);
   const lastRouteRef = useRef(null); // cache last route data for traffic toggle
   const lastAlternateRef = useRef(null); // cache last alternate route data for traffic toggle
@@ -235,6 +238,18 @@ function NavigationPageContent() {
     recalculate(reason);
   }, [recalculate]);
 
+  const handleDriverVisibilityChange = useCallback((nextVisible) => {
+    if (!nextVisible) {
+      setActiveMonitor((prev) => (prev === "driver" ? "speed" : prev));
+    }
+  }, []);
+
+  const handleSpeedVisibilityChange = useCallback((nextVisible) => {
+    if (!nextVisible) {
+      setActiveMonitor((prev) => (prev === "speed" ? "driver" : prev));
+    }
+  }, []);
+
   // ── Traffic toggle — re-draw current route with/without traffic colors ──
   const handleToggleTraffic = useCallback(() => {
     setShowTraffic(prev => {
@@ -376,11 +391,17 @@ function NavigationPageContent() {
         <DrowsinessMonitorBox
           autoStart={autoStartDrowsiness}
           isDark={isDark}
+          forceCollapsed={activeMonitor !== "driver"}
+          onRequestFocus={() => setActiveMonitor("driver")}
+          onVisibilityChange={handleDriverVisibilityChange}
         />
 
         <SpeedMonitorBox
           autoStart={autoStartSpeed}
           isDark={isDark}
+          forceCollapsed={activeMonitor !== "speed"}
+          onRequestFocus={() => setActiveMonitor("speed")}
+          onVisibilityChange={handleSpeedVisibilityChange}
           currentSpeedKmh={effectiveSpeedKmh}
           speedSource={effectiveSpeedSource}
           currentCoords={effectiveCoords}

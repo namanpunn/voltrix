@@ -83,6 +83,9 @@ export default function SpeedMonitorBox({
   currentCoords = null,
   locationPermission = "prompt",
   locationError = "",
+  forceCollapsed = false,
+  onRequestFocus,
+  onVisibilityChange,
 }) {
   const T = useMemo(() => getColors(isDark), [isDark]);
 
@@ -99,6 +102,9 @@ export default function SpeedMonitorBox({
   const audioContextRef = useRef(null);
   const lookupIntervalRef = useRef(DEFAULT_LOOKUP_INTERVAL_MS);
   const lookupMoveThresholdRef = useRef(DEFAULT_LOOKUP_MOVE_THRESHOLD_M);
+
+  const expandedWidth = { xs: "min(92vw, 320px)", md: 318 };
+  const compactWidth = { xs: "min(88vw, 260px)", md: 220 };
 
   const normalizedSpeedKmh = Number.isFinite(currentSpeedKmh)
     ? Math.max(0, currentSpeedKmh)
@@ -257,8 +263,15 @@ export default function SpeedMonitorBox({
   useEffect(() => {
     if (autoStart) {
       setVisible(true);
+      onVisibilityChange?.(true);
     }
-  }, [autoStart]);
+  }, [autoStart, onVisibilityChange]);
+
+  useEffect(() => {
+    if (forceCollapsed) {
+      setCollapsed(true);
+    }
+  }, [forceCollapsed]);
 
   useEffect(() => {
     if (!visible || !hasCoords) {
@@ -297,6 +310,13 @@ export default function SpeedMonitorBox({
   const limitText = toSpeedLabel(maxSpeedKmh);
   const roadName = limitData?.roadName || "Current road";
   const speedSourceText = sourceLabel(speedSource);
+  const handleToggleCollapsed = useCallback(() => {
+    if (collapsed) {
+      onRequestFocus?.();
+    }
+    setCollapsed((prev) => !prev);
+  }, [collapsed, onRequestFocus]);
+
   const positionSx = {
     right: 16,
     top: { xs: "auto", md: 116 },
@@ -306,7 +326,11 @@ export default function SpeedMonitorBox({
   if (!visible) {
     return (
       <IconButton
-        onClick={() => setVisible(true)}
+        onClick={() => {
+          onRequestFocus?.();
+          setVisible(true);
+          onVisibilityChange?.(true);
+        }}
         aria-label="Open speed monitor"
         sx={{
           position: "absolute",
@@ -339,10 +363,11 @@ export default function SpeedMonitorBox({
         position: "absolute",
         ...positionSx,
         zIndex: 1190,
-        width: { xs: "min(92vw, 330px)", md: 330 },
+        width: collapsed ? compactWidth : expandedWidth,
         borderRadius: "14px",
-        bgcolor: T.navyLight,
+        bgcolor: isDark ? "rgba(17,24,39,0.88)" : "rgba(255,255,255,0.9)",
         border: `1px solid ${isOverspeed ? `${T.rose}66` : T.navyBorder}`,
+        backdropFilter: "blur(14px)",
         boxShadow: isDark
           ? "0 18px 44px rgba(2,6,23,0.55)"
           : "0 18px 44px rgba(15,23,42,0.18)",
@@ -394,7 +419,7 @@ export default function SpeedMonitorBox({
           </Tooltip>
           <IconButton
             size="small"
-            onClick={() => setCollapsed((prev) => !prev)}
+            onClick={handleToggleCollapsed}
             sx={{ color: T.textMuted }}
           >
             {collapsed ? (
@@ -405,7 +430,10 @@ export default function SpeedMonitorBox({
           </IconButton>
           <IconButton
             size="small"
-            onClick={() => setVisible(false)}
+            onClick={() => {
+              setVisible(false);
+              onVisibilityChange?.(false);
+            }}
             sx={{ color: T.textMuted }}
           >
             <CloseRounded sx={{ fontSize: 15 }} />
