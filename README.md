@@ -1,367 +1,224 @@
-<div align="center">
+# Voltrix (SmartRoute)
 
-<!-- Animated Header -->
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0a0f1e,50:22d3ee,100:6366f1&height=220&section=header&text=SmartRoute&fontSize=72&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=Vision%20Navigation%20System&descSize=18&descAlignY=55&descColor=94a3b8" width="100%" />
+Voltrix is a vision-assisted navigation web app built with Next.js.
+It combines route planning, alternate route comparison, speed awareness, and driver alert monitoring in a single UI.
 
-<br/>
+This README reflects the current implementation in the repository (April 2026).
 
-<!-- Badges Row -->
-[![Next.js](https://img.shields.io/badge/Next.js-16.1-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
-[![MUI](https://img.shields.io/badge/MUI-7.3-007FFF?style=for-the-badge&logo=mui&logoColor=white)](https://mui.com/)
-[![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
-[![License](https://img.shields.io/badge/License-MIT-22d3ee?style=for-the-badge)](LICENSE)
+## What Is Currently Working
 
-<br/>
+1. Source/destination routing using Nominatim geocoding + OSRM driving routes.
+2. Place autocomplete with recent search history (stored in localStorage).
+3. Alternate "via" route comparison with split-map decision flow and verdict banner.
+4. Dark/light theme toggle with persistence.
+5. Mobile bottom-sheet workflow (peek/mid/full snap points).
+6. Speed monitor overlay:
+   - Current speed from geolocation (or derived/simulated fallback)
+   - Road max-speed lookup via TomTom
+   - Soft overspeed audio alert
+7. Drowsiness monitor overlay (client-side MediaPipe face landmarks, camera-based).
+8. Map traffic display:
+   - Route segment speed coloring from OSRM step speeds
+   - Optional TomTom traffic flow tile overlay
 
-<!-- Typing SVG -->
-<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Space+Grotesk&weight=600&size=18&duration=3500&pause=800&color=22D3EE&center=true&vCenter=true&repeat=true&random=false&width=480&height=30&lines=Smart+Route+Comparison+%F0%9F%9A%80;Live+Rerouting+%26+Traffic+Intelligence+%F0%9F%9B%A3%EF%B8%8F;Powered+by+Open+Source+APIs+%E2%9C%A8" alt="Typing SVG" /></a>
+## Feature Status Matrix
 
-<br/><br/>
+| Area | Status | Notes |
+| --- | --- | --- |
+| Core route planning | Active | Nominatim + OSRM |
+| Alternate route compare | Active | Verdict and route replacement flow is active |
+| Speed monitor | Active | Uses `/api/speed/limit` |
+| Drowsiness monitor | Active | In-browser MediaPipe mode |
+| Reroute alert banner | Wired with limited live triggers | State handling exists, but off-route/manual trigger controls are not fully exposed in the current UI |
+| Roadblock panel UI | Present in code, not mounted | `TrafficPanel.jsx` exists but is not used in current navigation page |
+| AR camera overlay | Present in code, not reachable | `CameraView.jsx` exists, but trigger is not currently exposed in sidebar/mobile UI |
+| Python drowsiness backend routes | Legacy/optional | API routes exist, but default monitor does not depend on them |
 
-> **SmartRoute** is an intelligent navigation system built as a Final Year Project at **K.R. Mangalam University**.
-> It delivers **real-time route planning**, **smart alternate route comparison**, **live rerouting**,
-> and **traffic-aware navigation** — all powered by open-source APIs.
+## Tech Stack
 
-<br/>
+- Next.js 16
+- React 19
+- MUI 7 + Emotion
+- Leaflet + Carto tiles
+- OpenStreetMap Nominatim (geocoding/autocomplete)
+- OSRM (routing)
+- TomTom (speed limit + traffic flow tiles)
+- MediaPipe Tasks Vision (client-side face landmark detection)
 
----
+## Project Structure
 
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════════ -->
-
-## ⚡ Feature Highlights
-
-<table>
-<tr>
-<td width="50%">
-
-### 🧭 Smart Route Planning
-Enter any source & destination — geocoded via **OpenStreetMap Nominatim** with autocomplete, recent places, and distance-based sorting. Routes calculated by **OSRM** in real-time.
-
-</td>
-<td width="50%">
-
-### 🔀 Alternate Route Comparison
-Ask _"What if I go via X?"_ — get a second route instantly, compare them side-by-side, and let the **Verdict Banner** tell you which one saves time.
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 🚦 Traffic-Aware Visualization
-Every route segment colored by speed:
-- 🟢 **> 60 km/h** — Free flow
-- 🟡 **30–60 km/h** — Moderate
-- 🟠 **15–30 km/h** — Slow
-- 🔴 **< 15 km/h** — Congested
-
-</td>
-<td width="50%">
-
-### 🔄 Live Rerouting Engine
-Detects when you're **> 80m off-route**, auto-recalculates from your current position. Supports **roadblock reporting** — report a block, and the system finds an instant detour.
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 🌗 Dark & Light Theme
-Full dual-theme system with localStorage persistence. Every component — map tiles, cards, borders, icons — adapts seamlessly.
-
-</td>
-<td width="50%">
-
-### 📱 Mobile-First Design
-Desktop gets a sleek **sidebar**. Mobile gets a **draggable bottom sheet** with 3 snap positions (peek / mid / full). Touch + mouse gesture support.
-
-</td>
-</tr>
-</table>
-
-### 🧠 Speed Intelligence Monitor
-Navigation screen now includes a floating **Speed Monitor** that shows:
-- **Current speed** from live GPS (with simulation fallback)
-- **Current road max speed** from TomTom road data
-- **Soft overspeed alert** when speed exceeds the road limit threshold
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     SmartRoute App                       │
-├─────────────┬─────────────────────┬─────────────────────┤
-│  Contexts   │       Hooks         │     Components      │
-├─────────────┼─────────────────────┼─────────────────────┤
-│ ThemeCtx    │ useRoute            │ Hero-Page           │
-│ LocationCtx │  ├─ geocodePlace()  │ MapView (Leaflet)   │
-│             │  ├─ fetchRoute()    │ Sidebar             │
-│             │  └─ trafficSegments │ MobileBottomSheet   │
-│             │                     │ PlaceAutocomplete   │
-│             │ useRerouting        │ RouteInfoCard       │
-│             │  ├─ offRouteDetect  │ VerdictBanner       │
-│             │  ├─ roadblockMgmt   │ AlternateRouteInput │
-│             │  └─ autoRecalculate │ RerouteAlert        │
-│             │                     │ TrafficPanel        │
-├─────────────┴─────────────────────┴─────────────────────┤
-│                    External APIs                         │
-│  ┌──────────────┐  ┌───────────┐  ┌──────────────────┐  │
-│  │  Nominatim   │  │   OSRM    │  │  CartoDB Tiles   │  │
-│  │  (Geocoding) │  │ (Routing) │  │  (Map Basemap)   │  │
-│  └──────────────┘  └───────────┘  └──────────────────┘  │
-│                  ┌──────────────────┐                    │
-│                  │      TomTom      │                    │
-│                  │ (Traffic + speed │                    │
-│                  │  limit lookup)   │                    │
-│                  └──────────────────┘                    │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📂 Project Structure
-
-```
+```text
 src/
-├── app/
-│   ├── layout.js                 # Root layout + providers
-│   ├── page.js                   # Landing → HeroPage
-│   ├── globals.css               # Global styles + animations
-│   ├── navigation/
-│   │   └── page.jsx              # Core app: Map + Sidebar
-│   ├── context/
-│   │   ├── ThemeContext.jsx       # 🌗 Dark/Light mode
-│   │   └── LocationContext.jsx    # 📍 User geolocation
-│   ├── hooks/
-│   │   ├── useRoute.js           # 🧭 Geocoding + OSRM routing
-│   │   └── useRerouting.js       # 🔄 Off-route detection + reroute
-│   └── utils/
-│       ├── theme.js              # 🎨 Color tokens + fonts
-│       └── mapHelpers.js         # 🗺️ Map utilities
-│
-└── components/
-    ├── Hero-Page.jsx             # ✨ Animated landing page
-    ├── MapView.jsx               # 🗺️ Leaflet dual-map system
-    ├── Sidebar.jsx               # 📋 Desktop route panel
-    ├── MobileBottomSheet.jsx     # 📱 Draggable mobile sheet
-    ├── PlaceAutocomplete.jsx     # 🔍 Search with autocomplete
-    ├── RouteInfoCard.jsx         # 📊 Route metrics display
-    ├── VerdictBanner.jsx         # ⚖️ Route comparison verdict
-    ├── AlternateRouteInput.jsx   # 🔀 "What if via X?" input
-    ├── RerouteAlert.jsx          # 🚨 Status toast animations
-    ├── TrafficPanel.jsx          # 🚦 Roadblocks + history
-    └── SplitScreen.jsx           # 🖥️ Split view (planned)
+  app/
+    api/
+      drowsiness/
+        start/route.js
+        status/route.js
+        stop/route.js
+      speed/
+        limit/route.js
+    context/
+      LocationContext.jsx
+      ThemeContext.jsx
+    hooks/
+      useRoute.js
+      useRerouting.js
+    navigation/
+      page.jsx
+  components/
+    MapView.jsx
+    Sidebar.jsx
+    MobileBottomSheet.jsx
+    PlaceAutocomplete.jsx
+    RouteInfoCard.jsx
+    AlternateRouteInput.jsx
+    VerdictBanner.jsx
+    SpeedMonitorBox.jsx
+    DrowsinessMonitorBox.jsx
+    RerouteAlert.jsx
+    CameraView.jsx
+    TrafficPanel.jsx
 ```
 
----
-
-## 🛠️ Tech Stack
-
-<div align="center">
-
-| Layer | Technology | Purpose |
-|:---:|:---:|:---:|
-| **Framework** | ![Next.js](https://img.shields.io/badge/Next.js_16-000?style=flat-square&logo=next.js) | App Router, SSR, File-based routing |
-| **UI Library** | ![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black) | Component architecture |
-| **Components** | ![MUI](https://img.shields.io/badge/MUI_7-007FFF?style=flat-square&logo=mui&logoColor=white) | Material Design system |
-| **Styling** | ![Emotion](https://img.shields.io/badge/Emotion-D36AC2?style=flat-square) | CSS-in-JS with theme tokens |
-| **Maps** | ![Leaflet](https://img.shields.io/badge/Leaflet_1.9-199900?style=flat-square&logo=leaflet) | Interactive map rendering |
-| **Geocoding** | ![OSM](https://img.shields.io/badge/Nominatim-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | Place search & autocomplete |
-| **Routing** | ![OSRM](https://img.shields.io/badge/OSRM-2C3E50?style=flat-square) | Driving directions + traffic |
-| **Vision AI** | ![@mediapipe/tasks-vision](https://img.shields.io/badge/MediaPipe-FBBC05?style=flat-square&logo=google) | In-browser driver drowsiness detection |
-| **Tiles** | ![CartoDB](https://img.shields.io/badge/CartoDB-F05A28?style=flat-square) | Dark & light basemaps |
-| **Speed Limits** | ![TomTom](https://img.shields.io/badge/TomTom-FF0000?style=flat-square) | Current road max-speed lookup |
-| **Fonts** | ![Google Fonts](https://img.shields.io/badge/Google_Fonts-4285F4?style=flat-square&logo=google&logoColor=white) | Space Grotesk + DM Sans |
-
-</div>
-
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- **Node.js** ≥ 18.x
-- **npm** / **yarn** / **pnpm**
+1. Node.js 18+
+2. npm (recommended)
 
-### Installation
+Note: Both `package-lock.json` and `yarn.lock` exist in this repo. Use one package manager consistently. Current setup is easiest with npm.
+
+### Install and Run
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/smartroute.git
-cd smartroute
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
-**That's it.** Open [http://localhost:3000](http://localhost:3000) and start navigating.
+Open http://localhost:3000
 
-### Optional: Enable Road Speed-Limit Lookup (TomTom)
+## Environment Variables
 
-Add a key in `.env.local` to enable real road max-speed lookup in the Speed Monitor:
+Create `.env.local` in project root.
 
-```bash
-TOMTOM_API_KEY=your_tomtom_key_here
+### Required for full experience
+
+```dotenv
+NEXT_PUBLIC_TOMTOM_API_KEY=your_tomtom_key
 ```
 
-If no key is set, the monitor still shows live current speed, and road max speed appears as unavailable.
+Why this key matters:
+1. Client map traffic flow tile overlay uses `NEXT_PUBLIC_TOMTOM_API_KEY`.
+2. Speed-limit API route can use this key (or fallback to `TOMTOM_API_KEY`).
 
-### Driver Drowsiness Monitor Setup
+### Optional speed service tuning
 
-The drowsiness camera monitor now runs fully in-browser using **MediaPipe Face Landmarker**.
-No Python service is required, so it works on **Vercel deploys**.
+```dotenv
+TOMTOM_API_KEY=your_server_side_key
+SPEED_LIMIT_CACHE_TTL_MS=120000
+SPEED_LIMIT_ERROR_CACHE_TTL_MS=15000
+SPEED_LIMIT_REQUEST_TIMEOUT_MS=3500
+SPEED_LIMIT_CACHE_COORD_DECIMALS=4
+```
 
-- Click **Start Your Journey** on the landing page.
-- The monitor opens on the navigation screen and auto-requests camera permission.
-- Detection and alerts run client-side (no video upload).
+### Optional legacy drowsiness backend tuning
 
-### Optional: Legacy Local Python Mode (Not needed for Vercel)
+```dotenv
+DROWSINESS_PYTHON_PATH=
+DROWSINESS_HOST=127.0.0.1
+DROWSINESS_PORT=5001
+DROWSINESS_EAR_THRESHOLD=0.25
+DROWSINESS_CONSEC_FRAMES=10
+DROWSINESS_CAMERA_INDEX=0
+```
 
-If you still want to run the old local Python backend for experimentation, use:
+## API Endpoints
+
+### Active in current UI flow
+
+- `GET /api/speed/limit?lat=<lat>&lng=<lng>`
+  - Returns road speed-limit information (TomTom-backed, cached).
+
+### Legacy/optional local backend endpoints
+
+- `POST /api/drowsiness/start`
+- `GET /api/drowsiness/status`
+- `POST /api/drowsiness/stop`
+
+These endpoints manage a local Python process (`service.py`).
+Current default drowsiness widget in UI runs client-side MediaPipe and does not require these endpoints.
+
+## Drowsiness Detection Modes
+
+### Default mode (used now)
+
+- Component: `DrowsinessMonitorBox.jsx`
+- Runs in browser with MediaPipe face landmarks
+- Uses webcam permission
+- No Python required
+
+### Legacy local mode (optional)
+
+- Python Flask service from `service.py`
+- Requires model file:
+  - `models/shape_predictor_68_face_landmarks.dat`
+- Install deps:
 
 ```bash
 python -m pip install -r requirements-drowsiness.txt
 ```
 
-This legacy path uses `service.py` and local Next API wrappers, but it is not required for production deploys.
+Use this only if you want to test the legacy backend route handlers.
 
----
+## Navigation Query Params
 
-## 🎯 How It Works
+Navigation page supports monitor auto-start controls:
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  User enters │     │   Nominatim  │     │     OSRM     │
-│  "India Gate"│────▶│   Geocoding  │────▶│   Routing    │
-│              │     │  → [lat,lng] │     │ → polyline   │
-└──────────────┘     └──────────────┘     │ → distance   │
-                                          │ → duration   │
-                                          │ → traffic    │
-                                          └──────┬───────┘
-                                                 │
-                     ┌──────────────┐            │
-                     │   Leaflet    │◀───────────┘
-                     │  Map Render  │
-                     │ • Route line │
-                     │ • Traffic    │
-                     │ • Markers    │
-                     └──────────────┘
+- `/navigation?drowsiness=0` -> do not auto-open drowsiness monitor
+- `/navigation?speed=0` -> do not auto-open speed monitor
+
+Default behavior (without params) auto-enables both monitors.
+
+## Scripts
+
+```bash
+npm run dev
+npm run build
+npm start
+npm run lint
 ```
 
-### Route Comparison Flow
+## Current Constraints and Notes
 
-```
-Primary Route ──────────────────┐
-                                ├──▶ VerdictBanner
-Alternate Route (via X) ───────┘    ├─ 🟢 "Via X saves 5 min"
-                                    ├─ 🔵 "Current route is faster"
-                                    └─ 🟡 "Both take same time"
-```
+1. Camera permission is required for drowsiness monitoring.
+2. Geolocation permission improves speed monitor quality and location accuracy.
+3. Autocomplete/routing is currently India-biased (Delhi NCR-focused viewbox in geocoding helper).
+4. Route segment traffic colors are derived from OSRM step speed estimates, not live detector hardware.
+5. If TomTom key is missing, speed monitor still renders but road max-speed may be unavailable.
+6. `TrafficPanel.jsx` and `CameraView.jsx` are present but not fully wired into the active user flow.
+7. Off-route/manual reroute controls are not exposed in the default navigation UI, so reroute alerts are not part of the main demo path.
 
-### Rerouting Engine
+## Troubleshooting
 
-```
-GPS Position ──▶ Distance Check ──▶ > 80m off route?
-                                        │
-                                   ┌────┴────┐
-                                   │  YES    │  NO
-                                   ▼         ▼
-                             Auto Reroute   Continue
-                             from current   monitoring
-                             position       (every 3s)
-```
+### Speed limit not showing
 
----
+1. Verify `NEXT_PUBLIC_TOMTOM_API_KEY` in `.env.local`.
+2. Restart dev server after changing env vars.
+3. Check browser geolocation permission.
 
-## 🎨 UI Showcase
+### Drowsiness monitor not starting
 
-### Color System
+1. Allow camera permission.
+2. Ensure browser supports `getUserMedia`.
+3. If blocked, close other apps using webcam.
 
-```
-Dark Mode                          Light Mode
-─────────                          ──────────
-Background   #0a0f1e               Background   #f8fafc
-Card         #111827               Card         #ffffff
-Border       #1e2d45               Border       #e2e8f0
-Cyan         #22d3ee               Cyan         #0891b2
-Green        #22c55e               Green        #16a34a
-Purple       #a78bfa               Purple       #7c3aed
-Rose         #f43f5e               Rose         #e11d48
-Text Primary #f1f5f9               Text Primary #0f172a
-```
+### Map traffic tile not appearing
 
-### Animations
+1. Confirm TomTom key is valid.
+2. Ensure network can reach TomTom tile APIs.
 
-| Animation | Where | Effect |
-|:---------:|:-----:|:------:|
-| `fadeInUp` | Hero cards | Slide up + fade in |
-| `pulseGlow` | CTA buttons | Breathing glow |
-| `shimmer` | Hero section | Light sweep |
-| `float` | Decorative icons | Gentle hover |
-| Pulsing aura | Map markers | Expanding ring |
-| Slide-down | Reroute alerts | Smooth entry |
-| Fade cycle | Sidebar placeholder | Rotating example routes |
+## Repository Notes
 
----
-
-## 📋 Available Scripts
-
-| Command | Description |
-|:--------|:------------|
-| `npm run dev` | Start dev server with hot reload |
-| `npm run build` | Production build |
-| `npm start` | Serve production build |
-| `npm run lint` | Run ESLint checks |
-
----
-
-## 🧪 Demo Flow
-
-> Perfect walkthrough for presentations:
-
-1. **Landing Page** → Click "Start Navigating"
-2. **Enter Source** → _Connaught Place, Delhi_
-3. **Enter Destination** → _India Gate, Delhi_
-4. **Click "Get Route"** → See route plotted on map
-5. **Add Alternate** → _"What if I go via Mandi House?"_
-6. **Compare** → Verdict Banner shows winner
-7. **Toggle Theme** → Dark ↔ Light switch
-8. **Report Roadblock** → Watch auto-reroute
-9. **Mobile View** → Resize to see bottom sheet
-
----
-
-## 🤝 Team
-
-<div align="center">
-
-**K.R. Mangalam University — Final Year Project**
-
-Built with 💙 using open-source technologies
-
-</div>
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0a0f1e,50:22d3ee,100:6366f1&height=120&section=footer" width="100%" />
-
-**⭐ Star this repo if you found it useful!**
-
-</div>
+- No `LICENSE` file is currently present in this repository.
+- If you want open-source licensing, add a license file and update this README accordingly.
