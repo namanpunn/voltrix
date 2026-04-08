@@ -310,6 +310,65 @@ export default function SpeedMonitorBox({
   const limitText = toSpeedLabel(maxSpeedKmh);
   const roadName = limitData?.roadName || "Current road";
   const speedSourceText = sourceLabel(speedSource);
+
+  const chipBaseSx = {
+    height: 24,
+    borderRadius: "999px",
+    fontFamily: fonts.body,
+    fontSize: "0.68rem",
+    fontWeight: 700,
+    "& .MuiChip-label": {
+      px: 1,
+    },
+  };
+
+  const collapsedSpeedChipSx = {
+    ...chipBaseSx,
+    color: isOverspeed
+      ? isDark
+        ? "#ffe4e6"
+        : "#881337"
+      : isDark
+      ? "#ecfeff"
+      : "#0f172a",
+    border: `1px solid ${
+      isOverspeed
+        ? isDark
+          ? "rgba(251,113,133,0.6)"
+          : "rgba(244,63,94,0.38)"
+        : isDark
+        ? "rgba(34,211,238,0.5)"
+        : "rgba(8,145,178,0.34)"
+    }`,
+    bgcolor: isOverspeed
+      ? isDark
+        ? "rgba(190,18,60,0.32)"
+        : "rgba(251,113,133,0.2)"
+      : isDark
+      ? "rgba(8,145,178,0.34)"
+      : "rgba(34,211,238,0.18)",
+    boxShadow: isOverspeed
+      ? isDark
+        ? "0 4px 12px rgba(190,18,60,0.22)"
+        : "0 4px 12px rgba(244,63,94,0.16)"
+      : isDark
+      ? "0 4px 12px rgba(8,145,178,0.2)"
+      : "0 4px 12px rgba(8,145,178,0.14)",
+  };
+
+  const collapsedMetaChipSx = {
+    ...chipBaseSx,
+    borderColor: T.navyBorder,
+    color: isDark ? "#cbd5e1" : T.textSub,
+    bgcolor: isDark ? "rgba(15,23,42,0.45)" : "rgba(248,250,252,0.85)",
+  };
+
+  const collapsedRefreshChipSx = {
+    ...collapsedMetaChipSx,
+    color: isDark ? "#7dd3fc" : T.cyan,
+    borderColor: isDark ? "rgba(34,211,238,0.32)" : "rgba(8,145,178,0.28)",
+  };
+
   const handleToggleCollapsed = useCallback(() => {
     if (collapsed) {
       onRequestFocus?.();
@@ -442,34 +501,35 @@ export default function SpeedMonitorBox({
       </Box>
 
       {collapsed ? (
-        <Box sx={{ px: 1.5, py: 1.1, display: "flex", alignItems: "center", gap: 0.8 }}>
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.05,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            background: isDark
+              ? "linear-gradient(180deg, rgba(7,12,24,0.72), rgba(2,6,23,0.8))"
+              : "linear-gradient(180deg, rgba(248,250,252,0.86), rgba(241,245,249,0.78))",
+            borderTop: `1px solid ${T.navyBorder}`,
+          }}
+        >
           <Chip
             size="small"
             label={`Speed ${speedText}`}
-            color={isOverspeed ? "error" : "default"}
-            sx={{ height: 22, fontSize: "0.68rem", fontWeight: 700 }}
+            sx={collapsedSpeedChipSx}
           />
           <Chip
             size="small"
             variant="outlined"
             label={`Limit ${limitText}`}
-            sx={{
-              height: 22,
-              fontSize: "0.68rem",
-              borderColor: T.navyBorder,
-              color: T.textSub,
-            }}
+            sx={collapsedMetaChipSx}
           />
           <Chip
             size="small"
             variant="outlined"
             label={`${Math.round(lookupIntervalMs / 1000)}s`}
-            sx={{
-              height: 22,
-              fontSize: "0.68rem",
-              borderColor: T.navyBorder,
-              color: T.textSub,
-            }}
+            sx={collapsedRefreshChipSx}
           />
         </Box>
       ) : (

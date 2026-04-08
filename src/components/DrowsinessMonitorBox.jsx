@@ -31,7 +31,7 @@ const MEDIAPIPE_MODEL_PATH =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
 const DEFAULT_EAR_THRESHOLD = 0.23;
-const CONSEC_FRAMES = 10;
+const EYES_CLOSED_ALERT_DELAY_MS = 2000;
 const CALIBRATION_FRAMES = 28;
 const UI_UPDATE_INTERVAL_MS = 120;
 const ALERT_BEEP_COOLDOWN_MS = 1800;
@@ -118,6 +118,7 @@ export default function DrowsinessMonitorBox({
   const startAtRef = useRef(0);
   const frameCountRef = useRef(0);
   const closeCounterRef = useRef(0);
+  const closedSinceAtRef = useRef(null);
   const calibrationEarsRef = useRef([]);
   const thresholdRef = useRef(DEFAULT_EAR_THRESHOLD);
   const lastUiUpdateAtRef = useRef(0);
@@ -185,6 +186,7 @@ export default function DrowsinessMonitorBox({
     setStatus(null);
 
     closeCounterRef.current = 0;
+    closedSinceAtRef.current = null;
     frameCountRef.current = 0;
     calibrationEarsRef.current = [];
     thresholdRef.current = DEFAULT_EAR_THRESHOLD;
@@ -206,6 +208,7 @@ export default function DrowsinessMonitorBox({
       let faceCount = 0;
       let currentEar = 0;
       let isDrowsy = false;
+      let closedDurationMs = 0;
 
       try {
         const result = detectorRef.current.detectForVideo(video, timeMs);
@@ -238,14 +241,24 @@ export default function DrowsinessMonitorBox({
 
             if (ear < thresholdRef.current) {
               closeCounterRef.current += 1;
+              if (closedSinceAtRef.current == null) {
+                closedSinceAtRef.current = timeMs;
+              }
+              closedDurationMs = Math.max(0, timeMs - closedSinceAtRef.current);
             } else {
               closeCounterRef.current = 0;
+              closedSinceAtRef.current = null;
+              closedDurationMs = 0;
             }
 
-            isDrowsy = closeCounterRef.current >= CONSEC_FRAMES;
+            isDrowsy = closedDurationMs >= EYES_CLOSED_ALERT_DELAY_MS;
+          } else {
+            closeCounterRef.current = 0;
+            closedSinceAtRef.current = null;
           }
         } else {
           closeCounterRef.current = 0;
+          closedSinceAtRef.current = null;
         }
       } catch (detErr) {
         setError(detErr.message || "Face landmark detection failed.");
@@ -273,12 +286,13 @@ export default function DrowsinessMonitorBox({
           isDrowsy,
           ear: currentEar,
           counter: closeCounterRef.current,
+          eyesClosedMs: Math.round(closedDurationMs),
           faceCount,
           frameCount: frameCountRef.current,
           error: "",
           uptimeSec,
           threshold: thresholdRef.current,
-          consecutiveFrames: CONSEC_FRAMES,
+          alertAfterMs: EYES_CLOSED_ALERT_DELAY_MS,
           calibrationProgress: clamp(
             calibrationEarsRef.current.length / CALIBRATION_FRAMES,
             0,
@@ -364,6 +378,7 @@ export default function DrowsinessMonitorBox({
       startAtRef.current = Date.now();
       frameCountRef.current = 0;
       closeCounterRef.current = 0;
+      closedSinceAtRef.current = null;
       calibrationEarsRef.current = [];
       thresholdRef.current = DEFAULT_EAR_THRESHOLD;
       alertBeepAtRef.current = 0;
