@@ -1,11 +1,7 @@
 'use client';
 import React from 'react';
-import { Box, Container, Typography, Button, Grid, Card, CardContent, useTheme, useMediaQuery } from '@mui/material';
+import { Box, Container, Typography, Button } from '@mui/material';
 import { styled, keyframes } from '@mui/material/styles';
-import NavigationIcon from '@mui/icons-material/Navigation';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import RouteIcon from '@mui/icons-material/Route';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Link from 'next/link';
 // Enhanced Keyframe animations
 const fadeInUp = keyframes`
@@ -145,6 +141,35 @@ const HeroSection = styled(Box)(({ theme }) => ({
   },
 }));
 
+const CornerLogo = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: theme.spacing(2.5),
+  left: theme.spacing(2.5),
+  zIndex: 3,
+  width: 230,
+  padding: theme.spacing(1.25, 1.5),
+  borderRadius: theme.spacing(2),
+  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 255, 0.95))',
+  border: '1px solid rgba(255, 255, 255, 0.85)',
+  boxShadow: '0 14px 34px rgba(0, 0, 0, 0.28)',
+  backdropFilter: 'blur(8px)',
+  animation: `${fadeIn} 0.8s ease 0.2s backwards`,
+  '& img': {
+    display: 'block',
+    width: '100%',
+    height: 'auto',
+    objectFit: 'contain',
+    objectPosition: 'left center',
+    filter: 'contrast(1.08) saturate(1.05)',
+  },
+  [theme.breakpoints.down('md')]: {
+    width: 195,
+    top: theme.spacing(2),
+    left: theme.spacing(2),
+    padding: theme.spacing(1, 1.25),
+  },
+}));
+
 const ContentWrapper = styled(Container)(({ theme }) => ({
   position: 'relative',
   zIndex: 2,
@@ -192,102 +217,15 @@ const SubHeading = styled(Typography)(({ theme }) => ({
   fontWeight: 400,
   fontSize: 'clamp(0.95rem, 1.8vw, 1.25rem)',
   lineHeight: 1.7,
+  textAlign: 'center',
   color: colors.neutral[300],
   marginBottom: theme.spacing(4),
   maxWidth: '700px',
+  marginLeft: 'auto',
+  marginRight: 'auto',
   animation: `${fadeInUp} 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards`,
   [theme.breakpoints.down('sm')]: {
     marginBottom: theme.spacing(3),
-  },
-}));
-
-const ProblemStatement = styled(Box)(({ theme }) => ({
-  background: `linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.05) 100%)`,
-  border: `1px solid rgba(59, 130, 246, 0.15)`,
-  borderRadius: theme.spacing(2.5),
-  padding: theme.spacing(4, 5),
-  marginTop: theme.spacing(6),
-  marginBottom: theme.spacing(6),
-  position: 'relative',
-  overflow: 'hidden',
-  animation: `${scaleIn} 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards`,
-  backdropFilter: 'blur(20px)',
-  [theme.breakpoints.up('lg')]: {
-    padding: theme.spacing(5, 6),
-    marginTop: theme.spacing(7),
-    marginBottom: theme.spacing(7),
-  },
-  [theme.breakpoints.down('md')]: {
-    padding: theme.spacing(3.5, 4),
-    marginTop: theme.spacing(5),
-    marginBottom: theme.spacing(5),
-  },
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(3),
-    marginTop: theme.spacing(4),
-    marginBottom: theme.spacing(4),
-  },
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '4px',
-    height: '100%',
-    background: `linear-gradient(180deg, ${colors.primary.main}, ${colors.secondary.main})`,
-  },
-}));
-
-const FeatureCard = styled(Card)(({ theme }) => ({
-  background: 'rgba(23, 23, 23, 0.6)',
-  backdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-  borderRadius: theme.spacing(2.5),
-  height: '100%',
-  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-  position: 'relative',
-  overflow: 'hidden',
-  cursor: 'pointer',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: `linear-gradient(135deg, ${colors.primary.glow} 0%, transparent 100%)`,
-    opacity: 0,
-    transition: 'opacity 0.4s ease',
-  },
-  '&:hover': {
-    transform: 'translateY(-12px)',
-    border: `1px solid ${colors.primary.main}40`,
-    boxShadow: `0 24px 48px ${colors.primary.glow}, 0 8px 16px rgba(0, 0, 0, 0.4)`,
-    '&::before': {
-      opacity: 1,
-    },
-    '& .icon-wrapper': {
-      transform: 'scale(1.1) rotate(5deg)',
-      background: `linear-gradient(135deg, ${colors.primary.main}, ${colors.secondary.main})`,
-    },
-  },
-}));
-
-const IconWrapper = styled(Box)(({ theme }) => ({
-  width: 64,
-  height: 64,
-  borderRadius: theme.spacing(2),
-  background: `linear-gradient(135deg, ${colors.primary.main}30, ${colors.secondary.main}20)`,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: theme.spacing(3),
-  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-  position: 'relative',
-  '& svg': {
-    fontSize: '1.75rem',
-    color: colors.primary.light,
-    zIndex: 1,
   },
 }));
 
@@ -329,31 +267,6 @@ const CTAButton = styled(Button)(({ theme }) => ({
     },
   },
   animation: `${fadeInUp} 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s backwards`,
-}));
-
-const SecondaryButton = styled(Button)(({ theme }) => ({
-  fontFamily: '"DM Sans", sans-serif',
-  fontSize: '0.95rem',
-  fontWeight: 600,
-  padding: theme.spacing(1.75, 4),
-  borderRadius: theme.spacing(1.5),
-  textTransform: 'none',
-  letterSpacing: '0.02em',
-  color: '#FFFFFF',
-  border: '1px solid rgba(255, 255, 255, 0.2)',
-  background: 'rgba(255, 255, 255, 0.05)',
-  backdropFilter: 'blur(10px)',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  [theme.breakpoints.up('lg')]: {
-    fontSize: '1rem',
-    padding: theme.spacing(2, 4.5),
-  },
-  '&:hover': {
-    background: 'rgba(255, 255, 255, 0.1)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    transform: 'translateY(-2px)',
-  },
-  animation: `${fadeInUp} 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s backwards`,
 }));
 
 const StatsBox = styled(Box)(({ theme }) => ({
@@ -438,57 +351,41 @@ const BadgeWrapper = styled(Box)(({ theme }) => ({
 
 // Main Component
 export default function ImprovedHeroPage() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  const features = [
-    {
-      icon: <RouteIcon />,
-      title: 'Intelligent Route Planning',
-      description: 'Advanced AI algorithms analyze multiple path options simultaneously, providing data-driven recommendations for optimal route selection, U-turns, and detour decisions.'
-    },
-    {
-      icon: <VisibilityIcon />,
-      title: 'Visual Navigation Aid',
-      description: 'Real-time camera integration identifies and highlights the correct path at complex intersections, providing visual confidence in unfamiliar environments.'
-    },
-    {
-      icon: <NavigationIcon />,
-      title: 'Live Route Simulation',
-      description: 'Instantly preview alternative routes from your current position with real-time traffic data, estimated time savings, and optimal decision points.'
-    },
-    {
-      icon: <TrendingUpIcon />,
-      title: 'Adaptive Intelligence',
-      description: 'Dynamic response to changing road conditions, traffic patterns, and unexpected obstacles with intelligent recommendations and automatic rerouting.'
-    }
-  ];
-
   return (
     <HeroSection>
+      <CornerLogo>
+        <Box
+          component="img"
+          src="/vedam_logo.webp"
+          alt="Vedam School of Technology"
+          loading="eager"
+          draggable={false}
+        />
+      </CornerLogo>
+
       <ContentWrapper>
         {/* Hero Content */}
         <Box sx={{ textAlign: 'center', mb: { xs: 6, md: 7, lg: 8 }, maxWidth: '850px', margin: '0 auto' }}>
           <BadgeWrapper>
             <div className="badge-dot" />
-            <span className="badge-text">Next-Gen Navigation Technology</span>
+            <span className="badge-text">Built for the Voltrix Project Demo</span>
           </BadgeWrapper>
 
           <MainHeading variant="h1">
-            Navigate Smarter with<br />
-            <span className="gradient-text">Vision-Powered Routing</span>
+            Plan Better Routes with<br />
+            <span className="gradient-text">Safety-First Navigation</span>
           </MainHeading>
           
           <SubHeading variant="h2">
-            Experience the future of navigation with our AI-driven platform that combines intelligent 
-            route optimization with real-time visual guidance for confident, efficient travel decisions.
+            Voltrix combines route planning, alternate-path verdicts, speed-limit awareness, and 
+            driver drowsiness monitoring in one real-time Next.js cockpit.
           </SubHeading>
 
           {/* CTA Buttons */}
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mt: { xs: 3.5, md: 4, lg: 4.5 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: { xs: 3.5, md: 4, lg: 4.5 } }}>
             <Link href="/navigation?drowsiness=1">
               <CTAButton variant="contained" size="large">
-                Start Your Journey
+                Start Live Navigation
               </CTAButton>
             </Link>
           </Box>
@@ -496,52 +393,19 @@ export default function ImprovedHeroPage() {
           {/* Stats */}
           <StatsBox>
             <StatItem>
-              <div className="stat-number">40%</div>
-              <div className="stat-label">Faster Arrivals</div>
+              <div className="stat-number">4</div>
+              <div className="stat-label">Core Modules</div>
             </StatItem>
             <StatItem>
-              <div className="stat-number">Real-Time</div>
-              <div className="stat-label">Route Analysis</div>
+              <div className="stat-number">2</div>
+              <div className="stat-label">Safety Monitors</div>
             </StatItem>
             <StatItem>
-              <div className="stat-number">24/7</div>
-              <div className="stat-label">Smart Guidance</div>
+              <div className="stat-number">Live</div>
+              <div className="stat-label">Route Verdict Flow</div>
             </StatItem>
           </StatsBox>
         </Box>
-
-        {/* Problem Statement */}
-        <ProblemStatement>
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontFamily: '"DM Sans", sans-serif',
-              fontWeight: 700,
-              color: '#FFFFFF',
-              mb: 2,
-              fontSize: { xs: '1.15rem', md: '1.3rem', lg: '1.4rem' },
-            }}
-          >
-            Solving the Navigation Challenge
-          </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              fontFamily: '"Inter", sans-serif',
-              color: colors.neutral[300],
-              lineHeight: 1.75,
-              fontSize: { xs: '0.95rem', md: '1rem', lg: '1.05rem' },
-              fontWeight: 400,
-            }}
-          >
-            Traditional navigation apps fall short when it matters most. They calculate the shortest or fastest 
-            route but leave you guessing at critical decision points. Should you make that U-turn? Is the 
-            alternate road actually faster? Existing systems don&apos;t allow real-time route simulation from your 
-            current position, and map views often fail at complex intersections. Our platform bridges this gap 
-            by combining intelligent optimization with camera-based visual guidance, empowering you to make 
-            informed decisions on the fly.
-          </Typography>
-        </ProblemStatement>
 
       </ContentWrapper>
     </HeroSection>
